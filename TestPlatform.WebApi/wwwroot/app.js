@@ -7403,7 +7403,7 @@ const app = {
   // ----------------------------------------------------
   // ADMIN: SUBJECTS MANAGEMENT (CREATE, EDIT, DELETE)
   // ----------------------------------------------------
-  async renderAdminSubjects() {
+  async renderAdminSubjects(page = 1) {
     const root = document.getElementById('app-root');
     root.innerHTML = `
       <div class="space-y-6 animate-fadeIn pb-12">
@@ -7435,31 +7435,88 @@ const app = {
               </tbody>
             </table>
           </div>
+          <!-- Pagination -->
+          <div id="admin-subjects-pagination" class="hidden px-6 py-4 border-t border-white/10 flex items-center justify-between gap-3 flex-wrap"></div>
         </div>
       </div>
     `;
 
     const res = await api('/api/subjects');
     const tbody = document.getElementById('admin-subjects-table-body');
-    if (res.success && res.data && res.data.length > 0) {
-      tbody.innerHTML = res.data.map(s => `
-        <tr class="hover:bg-white/5 transition">
-          <td class="px-6 py-4 font-bold text-white">${s.name}</td>
-          <td class="px-6 py-4 text-gray-400">${s.description || '—'}</td>
-          <td class="px-6 py-4 text-center font-semibold text-blue-400">${s.testsCount || 0} ta</td>
-          <td class="px-6 py-4 text-center text-gray-400">${s.topicsCount || 0} ta</td>
-          <td class="px-6 py-4 text-right">
-            <div class="flex items-center justify-end gap-1.5">
-              <button onclick="app.openEditSubjectModal('${s.id}', '${s.name.replace(/'/g, "\\'")}', '${(s.description || '').replace(/'/g, "\\'")}')" class="p-2 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition" title="Tahrirlash">
-                <span class="material-symbols-outlined text-[16px]">edit</span>
+    const paginationEl = document.getElementById('admin-subjects-pagination');
+    const allSubjects = (res.success && res.data && Array.isArray(res.data)) ? res.data : [];
+
+    if (allSubjects.length > 0) {
+      const PAGE_SIZE = 10;
+      const totalPages = Math.ceil(allSubjects.length / PAGE_SIZE);
+      let currentPage = Math.max(1, Math.min(page, totalPages));
+
+      const renderPage = (pg) => {
+        currentPage = Math.max(1, Math.min(pg, totalPages));
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const pageSubjects = allSubjects.slice(start, start + PAGE_SIZE);
+
+        tbody.innerHTML = pageSubjects.map(s => `
+          <tr class="hover:bg-white/5 transition">
+            <td class="px-6 py-4 font-bold text-white">${s.name}</td>
+            <td class="px-6 py-4 text-gray-400">${s.description || '—'}</td>
+            <td class="px-6 py-4 text-center font-semibold text-blue-400">${s.testsCount || 0} ta</td>
+            <td class="px-6 py-4 text-center text-gray-400">${s.topicsCount || 0} ta</td>
+            <td class="px-6 py-4 text-right">
+              <div class="flex items-center justify-end gap-1.5">
+                <button onclick="app.openEditSubjectModal('${s.id}', '${s.name.replace(/'/g, "\\'")}', '${(s.description || '').replace(/'/g, "\\'")}')" class="p-2 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition" title="Tahrirlash">
+                  <span class="material-symbols-outlined text-[16px]">edit</span>
+                </button>
+                <button onclick="app.deleteSubject('${s.id}')" class="p-2 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition" title="O'chirish">
+                  <span class="material-symbols-outlined text-[16px]">delete</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+
+        if (totalPages > 1 && paginationEl) {
+          paginationEl.classList.remove('hidden');
+
+          const startNum = start + 1;
+          const endNum = Math.min(start + PAGE_SIZE, allSubjects.length);
+          let pageButtons = '';
+          for (let i = 1; i <= totalPages; i++) {
+            const isActive = i === currentPage;
+            pageButtons += `
+              <button onclick="app._adminSubjectsGoPage(${i})"
+                class="w-8 h-8 rounded-lg text-xs font-bold transition ${isActive
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30'
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                }">
+                ${i}
+              </button>`;
+          }
+
+          paginationEl.innerHTML = `
+            <div class="text-xs text-gray-400">
+              <span class="text-white font-semibold">${startNum}–${endNum}</span> / ${allSubjects.length} ta fan &nbsp;·&nbsp;
+              <span class="text-emerald-400 font-semibold">${currentPage}-qism</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button onclick="app._adminSubjectsGoPage(${currentPage - 1})"
+                ${currentPage === 1 ? 'disabled' : ''}
+                class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center">
+                <span class="material-symbols-outlined text-[16px]">chevron_left</span>
               </button>
-              <button onclick="app.deleteSubject('${s.id}')" class="p-2 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition" title="O'chirish">
-                <span class="material-symbols-outlined text-[16px]">delete</span>
+              ${pageButtons}
+              <button onclick="app._adminSubjectsGoPage(${currentPage + 1})"
+                ${currentPage === totalPages ? 'disabled' : ''}
+                class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center">
+                <span class="material-symbols-outlined text-[16px]">chevron_right</span>
               </button>
             </div>
-          </td>
-        </tr>
-      `).join('');
+          `;
+        }
+      };
+
+      this._adminSubjectsGoPage = (pg) => renderPage(pg);
+      renderPage(currentPage);
     } else {
       tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-500">Fanlar topilmadi.</td></tr>`;
     }
