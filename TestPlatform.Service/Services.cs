@@ -75,6 +75,7 @@ namespace TestPlatform.Service
                     From = new MailAddress(senderEmail, senderName),
                     Subject = $"{code} - Test Platformasi Tasdiqlash Kodi",
                     IsBodyHtml = true,
+                    Priority = MailPriority.High,
                     Body = $@"
 <!DOCTYPE html>
 <html>
@@ -117,6 +118,9 @@ namespace TestPlatform.Service
 </html>"
                 };
 
+                mail.Headers.Add("X-Priority", "1");
+                mail.Headers.Add("X-MSMail-Priority", "High");
+                mail.Headers.Add("Importance", "High");
                 mail.To.Add(toEmail);
                 await client.SendMailAsync(mail);
                 Console.WriteLine($"[GMAIL SMTP SUCCESS] Tasdiqlash xati {toEmail} manziliga haqiqatdan yuborildi!");
@@ -219,12 +223,12 @@ namespace TestPlatform.Service
                 if (DateTime.UtcNow > stored.Expiry)
                     return ApiResponse<AuthResponseDto>.Fail("Tasdiqlash kodining muddati tugagan. Qaytadan kod oling.", 400);
 
-                if (stored.Code != inputCode && inputCode != "123456")
+                if (stored.Code != inputCode)
                     return ApiResponse<AuthResponseDto>.Fail("Tasdiqlash kodi noto'g'ri", 400);
 
                 _verificationCodes.TryRemove(email, out _);
             }
-            else if (inputCode != "123456")
+            else
             {
                 return ApiResponse<AuthResponseDto>.Fail("Tasdiqlash kodi topilmadi yoki muddati o'tgan. Iltimos, 'Kod Olish' tugmasini bosing.", 400);
             }
@@ -2285,28 +2289,27 @@ namespace TestPlatform.Service
                 new SubscriptionPlanDto
                 {
                     Id = "free",
-                    Name = "Boshlang'ich",
+                    Name = "Standart (Bepul)",
                     Description = "Platforma imkoniyatlari bilan tanishish uchun bepul reja",
                     Price = 0,
                     FormattedPrice = "0 so'm",
-                    BillingPeriod = "bepul",
+                    BillingPeriod = "oy",
                     DurationDays = 0,
                     BadgeText = "Bepul",
                     IsPopular = false,
                     Features = new List<string>
                     {
                         "Standart ochiq testlar katalogi",
-                        "3 tagacha test topshirish urinishi",
-                        "Standart elektron sertifikat",
+                        "Oddiy elektron sertifikat",
                         "Umumiy reytingda qatnashish",
-                        "Nova AI asosiy maslahatlari"
+                        "Cheklangan test topshirish"
                     }
                 },
                 new SubscriptionPlanDto
                 {
                     Id = "pro",
                     Name = "PRO Oylik",
-                    Description = "Barcha eksklyuziv testlar, cheksiz AI repetitor va Oltin sertifikatlar",
+                    Description = "Barcha eksklyuziv testlar, Oltin sertifikatlar va savollar tahlili",
                     Price = 49000,
                     FormattedPrice = "49 000 so'm",
                     BillingPeriod = "oy",
@@ -2316,51 +2319,30 @@ namespace TestPlatform.Service
                     Features = new List<string>
                     {
                         "🔒 Barcha Eksklyuziv PRO testlarga kirish",
-                        "🤖 Nova AI Pro cheksiz Sokratik maslahatchi",
-                        "👑 Reyting va profilda oltin 'PRO' nishoni",
                         "📜 Oltin (Gold Accredited) rasmiy sertifikatlar",
                         "🚀 Cheksiz qayta topshirish imkoniyati",
-                        "⏱️ Xatolar ustida batafsil AI tahlili"
+                        "💡 Xatolar tahlili va to'g'ri javoblar izohi",
+                        "👑 Reyting va profilda oltin 'PRO' nishoni"
                     }
                 },
                 new SubscriptionPlanDto
                 {
                     Id = "vip",
-                    Name = "VIP Yillik",
-                    Description = "Eng manfaatli to'liq yillik obuna + Barcha olimpiadalar va tanlovlar",
-                    Price = 390000,
-                    FormattedPrice = "390 000 so'm",
-                    BillingPeriod = "yil",
-                    DurationDays = 365,
-                    BadgeText = "35% Chegirma 💎",
+                    Name = "VIP Oylik",
+                    Description = "Eng yuqori darajadagi imtiyozlar, Brilliant sertifikat va AI yordami",
+                    Price = 79000,
+                    FormattedPrice = "79 000 so'm",
+                    BillingPeriod = "oy",
+                    DurationDays = 30,
+                    BadgeText = "VIP Imtiyoz 💎",
                     IsPopular = false,
                     Features = new List<string>
                     {
-                        "🌟 Barcha PRO imkoniyatlari (12 oy)",
-                        "💎 Reyting va profilda yaltirab turuvchi 'VIP' nishoni",
-                        "🏆 Barcha pullik Respublika Olimpiadalariga bepul kirish",
+                        "🌟 Barcha PRO imkoniyatlari",
                         "💎 Brilyant (Diamond VIP) maxsus sertifikatlar",
-                        "⚡️ Yangi fanlar va savollarga 1-bo'lib kirish",
-                        "📞 24/7 Shaxsiy VIP qo'llab-quvvatlash"
-                    }
-                },
-                new SubscriptionPlanDto
-                {
-                    Id = "lifetime",
-                    Name = "Umrbod VIP",
-                    Description = "Bir martalik to'lov — platformaga umrbod to'liq kirish",
-                    Price = 890000,
-                    FormattedPrice = "890 000 so'm",
-                    BillingPeriod = "umrbod",
-                    DurationDays = 3650,
-                    BadgeText = "Cheksiz ♾️",
-                    IsPopular = false,
-                    Features = new List<string>
-                    {
-                        "♾️ Platformaning butun umrga barcha imkoniyatlari",
-                        "👑 Barcha yangi AI modellari va Pro testlar",
-                        "🌟 Maksimal darajadagi ta'lim nishonlari",
-                        "📜 VIP Sertifikatlar cheksiz generatsiyasi"
+                        "🤖 Cheksiz AI repetitor va masalalar tushuntirishi",
+                        "💎 Reyting va profilda yaltirab turuvchi 'VIP' nishoni",
+                        "📞 Ustuvor 24/7 shaxsiy qo'llab-quvvatlash"
                     }
                 }
             };
@@ -2433,8 +2415,8 @@ namespace TestPlatform.Service
                 DiscountPercentage = 20,
                 Message = "🎉 Promo-kod tasdiqlandi! To'lov uchun 20% chegirma taqdim etildi.",
                 DiscountedProPrice = 39200,
-                DiscountedVipPrice = 312000,
-                DiscountedLifetimePrice = 712000
+                DiscountedVipPrice = 63200,
+                DiscountedLifetimePrice = 0
             }, "20% chegirma muvaffaqiyatli qo'llanildi"));
         }
 
@@ -2445,23 +2427,10 @@ namespace TestPlatform.Service
 
             string planId = (dto.PlanId ?? "pro").ToLowerInvariant();
             int days = 30;
-            decimal amount = 49000;
-            string planName = "Pro";
+            decimal amount = planId == "vip" ? 79000 : 49000;
+            string planName = planId == "vip" ? "VIP" : "Pro";
 
-            if (planId == "vip")
-            {
-                days = 365;
-                amount = 390000;
-                planName = "VIP";
-            }
-            else if (planId == "lifetime")
-            {
-                days = 3650;
-                amount = 890000;
-                planName = "Lifetime";
-            }
-
-            // Apply 20% discount if valid promo code is provided (Never sets payment to 0!)
+            // Apply 20% discount if valid promo code is provided
             string? appliedPromo = null;
             if (!string.IsNullOrWhiteSpace(dto.PromoCode))
             {
@@ -2473,7 +2442,7 @@ namespace TestPlatform.Service
                 }
             }
 
-            DateTime? expiresAt = planId == "lifetime" ? null : DateTime.UtcNow.AddDays(days);
+            DateTime? expiresAt = DateTime.UtcNow.AddDays(days);
 
             user.IsPremium = true;
             user.PremiumPlan = planName;

@@ -261,15 +261,28 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     }
 
     const studentName = formatFullName(email.split('@')[0]) || 'Talaba';
-    const user = {
+    let user = {
       id: '8E1F4B70-2F94-47B7-BA3F-E8D84064D78E',
       fullName: studentName,
       email: email.includes('@') ? email : `${email}@gmail.com`,
       role: 'Student',
       isActive: true,
-      isPremium: true,
-      premiumPlan: 'Pro'
+      isPremium: false,
+      premiumPlan: null
     };
+
+    try {
+      const users = JSON.parse(localStorage.getItem('tp_local_users') || '[]');
+      const foundLocal = users.find(u => (u.email || '').toLowerCase() === email);
+      if (foundLocal) {
+        user = { ...user, ...foundLocal };
+      }
+      const userPass = localStorage.getItem('tp_user_pass_' + email);
+      if (userPass && pass !== userPass) {
+        return { success: false, statusCode: 401, message: "Parol noto'g'ri", data: null };
+      }
+    } catch (e) {}
+
     return { success: true, statusCode: 200, message: "Muvaffaqiyatli kirildi", data: { token: 'mock_jwt_student_token', user } };
   }
 
@@ -292,7 +305,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
       storedCode = sessionStorage.getItem('tp_pending_email_code_' + email);
     } catch (e) {}
 
-    if (code !== '123456' && code !== storedCode) {
+    if (!storedCode || code !== storedCode) {
       return { success: false, statusCode: 400, message: "Tasdiqlash kodi noto'g'ri yoki muddati tugagan! Iltimos, 'Kod Yuborish' tugmasini bosing." };
     }
 
@@ -302,8 +315,8 @@ async function handleStandaloneFallback(endpoint, options = {}) {
       email: email,
       role: 'Student',
       isActive: true,
-      isPremium: true,
-      premiumPlan: 'Pro'
+      isPremium: false,
+      premiumPlan: null
     };
 
     try {
@@ -356,7 +369,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
       if (!code) {
         return { success: false, statusCode: 400, message: "Yangi emailga yuborilgan 6 xonali tasdiqlash kodini kiriting" };
       }
-      if (code !== '123456' && code !== storedCode) {
+      if (!storedCode || code !== storedCode) {
         return { success: false, statusCode: 400, message: "Tasdiqlash kodi noto'g'ri" };
       }
     }
@@ -387,7 +400,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     if (!code) {
       return { success: false, statusCode: 400, message: "Emailingizga yuborilgan 6 xonali tasdiqlash kodini kiriting" };
     }
-    if (code !== '123456' && code !== storedCode) {
+    if (!storedCode || code !== storedCode) {
       return { success: false, statusCode: 400, message: "Tasdiqlash kodi noto'g'ri" };
     }
 
@@ -399,6 +412,12 @@ async function handleStandaloneFallback(endpoint, options = {}) {
         return { success: false, statusCode: 400, message: "Joriy parol noto'g'ri kiritildi" };
       }
       localStorage.setItem('tp_admin_custom_pass', newPass);
+    } else {
+      const userPass = localStorage.getItem('tp_user_pass_' + userEmail);
+      if (userPass && currentPass !== userPass) {
+        return { success: false, statusCode: 400, message: "Joriy parol noto'g'ri kiritildi" };
+      }
+      localStorage.setItem('tp_user_pass_' + userEmail, newPass);
     }
     return { success: true, statusCode: 200, message: "Parol muvaffaqiyatli o'zgartirildi" };
   }
@@ -801,23 +820,202 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     return { success: true, statusCode: 200, data: announcements };
   }
 
-  // 13. Premium & Pricing
-  if (endpoint === '/api/premium/redeem-promo') {
+  // 13. Premium & Pricing & Subscriptions
+  if (endpoint === '/api/subscription/plans' || endpoint === '/api/premium/plans') {
     return {
       success: true,
       statusCode: 200,
-      message: "Promo-kod muvaffaqiyatli faollashtirildi! 💎 VIP tarifi taqdim etildi.",
-      data: { plan: 'VIP', isPremium: true, durationDays: 30 }
+      data: [
+        {
+          id: 'free',
+          name: "Standart (Bepul)",
+          description: "Boshlang'ich bilim darajasini tekshirish uchun bepul reja",
+          price: 0,
+          formattedPrice: "0 so'm",
+          billingPeriod: "oy",
+          isPopular: false,
+          features: [
+            "Standart ochiq testlar katalogi",
+            "Oddiy elektron sertifikat",
+            "Umumiy reytingda qatnashish",
+            "Cheklangan test topshirish"
+          ]
+        },
+        {
+          id: 'pro',
+          name: "PRO Oylik",
+          description: "Barcha eksklyuziv testlar, Oltin sertifikatlar va savollar tahlili",
+          price: 49000,
+          formattedPrice: "49 000 so'm",
+          billingPeriod: "oy",
+          isPopular: true,
+          badgeText: "Ommabop 🔥",
+          features: [
+            "🔒 Barcha Eksklyuziv PRO testlarga kirish",
+            "📜 Oltin (Gold Accredited) rasmiy sertifikatlar",
+            "🚀 Cheksiz qayta topshirish imkoniyati",
+            "💡 Xatolar tahlili va to'g'ri javoblar izohi",
+            "👑 Reyting va profilda oltin 'PRO' nishoni"
+          ]
+        },
+        {
+          id: 'vip',
+          name: "VIP Oylik",
+          description: "Eng yuqori darajadagi imtiyozlar, Brilliant sertifikat va AI yordami",
+          price: 79000,
+          formattedPrice: "79 000 so'm",
+          billingPeriod: "oy",
+          isPopular: false,
+          badgeText: "VIP Imtiyoz 💎",
+          features: [
+            "🌟 Barcha PRO imkoniyatlari",
+            "💎 Brilyant (Diamond VIP) maxsus sertifikatlar",
+            "🤖 Cheksiz AI repetitor va masalalar tushuntirishi",
+            "💎 Reyting va profilda yaltirab turuvchi 'VIP' nishoni",
+            "📞 Ustuvor 24/7 shaxsiy qo'llab-quvvatlash"
+          ]
+        }
+      ]
     };
   }
 
-  if (endpoint === '/api/premium/checkout') {
+  if (endpoint === '/api/subscription/my-status') {
     return {
       success: true,
       statusCode: 200,
-      message: "To'lov muvaffaqiyatli amalga oshirildi! Tarifingiz yangilandi.",
-      data: { plan: body.plan || 'Pro', isPremium: true }
+      data: {
+        isPremium: !!state.user?.isPremium,
+        planName: state.user?.premiumPlan || (state.user?.isPremium ? 'PRO' : 'Standart'),
+        expiresAt: null
+      }
     };
+  }
+
+  if (endpoint.startsWith('/api/subscription/validate-promo') || endpoint === '/api/premium/redeem-promo') {
+    const urlParams = new URLSearchParams(endpoint.split('?')[1] || '');
+    const code = (urlParams.get('code') || body.code || '').trim().toUpperCase();
+
+    let adminPromos = [];
+    try {
+      adminPromos = JSON.parse(localStorage.getItem('tp_admin_promos') || '[]');
+    } catch (e) {}
+
+    if (!adminPromos.length) {
+      adminPromos = [
+        { code: 'BEHRUZ2026', discountPercent: 20, description: 'Admin rasmiy promo-kodi', isActive: true, createdAt: new Date().toISOString() }
+      ];
+      localStorage.setItem('tp_admin_promos', JSON.stringify(adminPromos));
+    }
+
+    const foundPromo = adminPromos.find(p => p.code.toUpperCase() === code && p.isActive);
+    if (foundPromo) {
+      const discountPercent = foundPromo.discountPercent || 20;
+      const discountedPro = Math.round(49000 * (1 - discountPercent / 100));
+      const discountedVip = Math.round(79000 * (1 - discountPercent / 100));
+
+      return {
+        success: true,
+        statusCode: 200,
+        message: `🎉 Promo-kod tasdiqlandi! To'lov uchun ${discountPercent}% chegirma taqdim etildi.`,
+        data: {
+          code: foundPromo.code,
+          discountPercent: discountPercent,
+          discountedProPrice: discountedPro,
+          discountedVipPrice: discountedVip,
+          isValid: true
+        }
+      };
+    }
+
+    return {
+      success: false,
+      statusCode: 400,
+      message: "Kiritilgan promo-kod mavjud emas yoki muddati tugagan. Promo-kodni faqat administrator taqdim etadi.",
+      data: { isValid: false }
+    };
+  }
+
+  if (endpoint === '/api/subscription/upgrade' || endpoint === '/api/premium/checkout') {
+    const planId = (body.planId || body.plan || 'pro').toLowerCase();
+    const planName = planId === 'vip' ? 'VIP' : 'PRO';
+    if (state.user) {
+      state.user.isPremium = true;
+      state.user.premiumPlan = planName;
+      updateUserSession(state.user);
+    }
+    return {
+      success: true,
+      statusCode: 200,
+      message: `${planName} obunangiz muvaffaqiyatli faollashtirildi!`,
+      data: { planName, isPremium: true }
+    };
+  }
+
+  if (endpoint === '/api/subscription/admin/grant') {
+    const targetUserId = body.targetUserId || body.userId;
+    const planName = body.planName || 'PRO';
+    try {
+      const users = JSON.parse(localStorage.getItem('tp_local_users') || '[]');
+      const targetUser = users.find(u => u.id === targetUserId);
+      if (targetUser) {
+        targetUser.isPremium = true;
+        targetUser.premiumPlan = planName;
+        localStorage.setItem('tp_local_users', JSON.stringify(users));
+      }
+    } catch (e) {}
+    return { success: true, statusCode: 200, message: "PRO obuna muvaffaqiyatli taqdim etildi" };
+  }
+
+  if (endpoint === '/api/admin/promos' || endpoint.startsWith('/api/admin/promos')) {
+    let promos = [];
+    try {
+      promos = JSON.parse(localStorage.getItem('tp_admin_promos') || '[]');
+    } catch (e) {}
+
+    if (!promos.length) {
+      promos = [
+        { code: 'BEHRUZ2026', discountPercent: 20, description: 'Admin rasmiy promo-kodi', isActive: true, createdAt: new Date().toISOString() }
+      ];
+      localStorage.setItem('tp_admin_promos', JSON.stringify(promos));
+    }
+
+    if (method === 'POST') {
+      const newCode = (body.code || '').trim().toUpperCase();
+      if (!newCode) return { success: false, statusCode: 400, message: "Promo-kod nomini kiriting!" };
+      if (promos.some(p => p.code.toUpperCase() === newCode)) {
+        return { success: false, statusCode: 400, message: "Ushbu promo-kod allaqachon mavjud!" };
+      }
+      const newPromo = {
+        code: newCode,
+        discountPercent: Number(body.discountPercent) || 20,
+        description: body.description || "Admin chegirma kodi",
+        isActive: body.isActive !== false,
+        createdAt: new Date().toISOString()
+      };
+      promos.unshift(newPromo);
+      localStorage.setItem('tp_admin_promos', JSON.stringify(promos));
+      return { success: true, statusCode: 200, message: "Yangi promo-kod yaratildi!", data: newPromo };
+    }
+
+    if (method === 'PUT' && endpoint.includes('/toggle')) {
+      const codeToToggle = endpoint.split('/')[4] || body.code;
+      const found = promos.find(p => p.code.toUpperCase() === (codeToToggle || '').toUpperCase());
+      if (found) {
+        found.isActive = !found.isActive;
+        localStorage.setItem('tp_admin_promos', JSON.stringify(promos));
+        return { success: true, statusCode: 200, message: `Promo-kod holati o'zgartirildi (${found.isActive ? 'Faol' : 'Nofaol'})`, data: found };
+      }
+      return { success: false, statusCode: 404, message: "Promo-kod topilmadi" };
+    }
+
+    if (method === 'DELETE') {
+      const codeToDelete = endpoint.split('/')[4] || body.code;
+      promos = promos.filter(p => p.code.toUpperCase() !== (codeToDelete || '').toUpperCase());
+      localStorage.setItem('tp_admin_promos', JSON.stringify(promos));
+      return { success: true, statusCode: 200, message: "Promo-kod o'chirildi" };
+    }
+
+    return { success: true, statusCode: 200, data: promos };
   }
 
   // 14. Support & Student Appeals
@@ -925,7 +1123,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
           action: "SUPPORT_CENTER",
           entityName: "Support",
           entityId: "HelpDesk",
-          details: "Talabalar murojaat markazi va Telegram integratsiyasi (@TestPlatformAdmin) ishga tushirildi",
+          details: "Talabalar murojaat markazi va Telegram integratsiyasi (@Sagdullayev_Behruz) ishga tushirildi",
           createdAt: new Date(Date.now() - 50 * 60 * 1000).toISOString()
         },
         {
@@ -1212,6 +1410,8 @@ const app = {
       this.renderAdminBulkImport(testId);
     } else if (hash === '#/admin/users') {
       this.renderAdminUsers();
+    } else if (hash === '#/admin/promos') {
+      this.renderAdminPromos();
     } else if (hash === '#/admin/subjects') {
       this.renderAdminSubjects();
     } else if (hash === '#/admin/audit-logs') {
@@ -3940,6 +4140,7 @@ const app = {
       { id: 'bulk-import', label: '🚀 JSON Import', icon: 'upload_file', href: '#/admin/bulk-import' },
       { id: 'subjects', label: 'Fanlar', icon: 'menu_book', href: '#/admin/subjects' },
       { id: 'users', label: 'Foydalanuvchilar', icon: 'group', href: '#/admin/users' },
+      { id: 'promos', label: '🏷️ Promo-kodlar', icon: 'confirmation_number', href: '#/admin/promos' },
       { id: 'support', label: '📬 Murojaatlar', icon: 'support_agent', href: '#/admin/support' },
       { id: 'audit-logs', label: 'Audit Logs', icon: 'history', href: '#/admin/audit-logs' }
     ];
@@ -4126,8 +4327,8 @@ const app = {
                   <button onclick="app.openSupportModal()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs glow-button-primary transition flex items-center gap-1.5 shadow-md shadow-blue-600/20">
                     <span class="material-symbols-outlined text-[16px]">chat</span> Murojaat Yuborish
                   </button>
-                  <a href="https://t.me/TestPlatformAdmin" target="_blank" rel="noopener noreferrer" class="px-4 py-2.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 font-bold text-xs transition flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[16px]">send</span> Telegram
+                  <a href="https://t.me/Sagdullayev_Behruz" target="_blank" rel="noopener noreferrer" class="px-4 py-2.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 font-bold text-xs transition flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">send</span> Telegram (@Sagdullayev_Behruz)
                   </a>
                 </div>
               </div>
@@ -4425,6 +4626,12 @@ const app = {
               </button>
               <a href="#/admin/users" class="w-full p-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-bold text-xs flex items-center gap-2 transition">
                 <span class="material-symbols-outlined text-[16px]">group</span> Foydalanuvchilar Boshqaruvi
+              </a>
+              <a href="#/admin/promos" class="w-full p-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-bold text-xs flex items-center gap-2 transition">
+                <span class="material-symbols-outlined text-[16px]">confirmation_number</span> Promo-kodlar Boshqaruvi
+              </a>
+              <a href="#/admin/support" class="w-full p-2.5 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 font-bold text-xs flex items-center gap-2 transition">
+                <span class="material-symbols-outlined text-[16px]">support_agent</span> Talabalar Murojaatlari
               </a>
               <a href="#/admin/audit-logs" class="w-full p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 font-bold text-xs flex items-center gap-2 transition">
                 <span class="material-symbols-outlined text-[16px]">history</span> Tizim Xavfsizlik Jurnali
@@ -6692,6 +6899,241 @@ const app = {
   },
 
   // ----------------------------------------------------
+  // VIEW: ADMIN PROMO CODES MANAGEMENT
+  // ----------------------------------------------------
+  async renderAdminPromos() {
+    const root = document.getElementById('app-root');
+    const headerHtml = this.getAdminHeaderHtml('promos', 'Promo-kodlar Boshqaruvi', 'Talabalar uchun chegirma promo-kodlarini yaratish, sozlash va boshqarish');
+
+    root.innerHTML = `
+      <div class="space-y-8 animate-fadeIn pb-16">
+        ${headerHtml}
+
+        <!-- Top Actions & Stats -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div class="glass-panel p-5 rounded-3xl border border-purple-500/30 space-y-1">
+            <span class="text-[11px] text-gray-400 font-bold uppercase">Jami Promo-kodlar</span>
+            <div id="stat-total-promos" class="text-3xl font-black text-white font-heading">0</div>
+          </div>
+          <div class="glass-panel p-5 rounded-3xl border border-emerald-500/30 space-y-1">
+            <span class="text-[11px] text-emerald-300 font-bold uppercase">Faol Kodlar</span>
+            <div id="stat-active-promos" class="text-3xl font-black text-emerald-400 font-heading">0</div>
+          </div>
+          <div class="glass-panel p-5 rounded-3xl border border-amber-500/30 flex items-center justify-between">
+            <div class="space-y-1">
+              <span class="text-[11px] text-amber-300 font-bold uppercase">Yangi Kod Berish</span>
+              <p class="text-xs text-gray-400">Admin orqali promo berish</p>
+            </div>
+            <button onclick="app.openCreatePromoModal()" class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs shadow-lg shadow-amber-500/20 transition flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">add</span> Yangi Promo-kod
+            </button>
+          </div>
+        </div>
+
+        <!-- Promos Table Panel -->
+        <div class="glass-panel rounded-3xl overflow-hidden border border-white/10">
+          <div class="p-5 border-b border-white/10 flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h3 class="text-base font-bold text-white font-heading flex items-center gap-2">
+                <span class="material-symbols-outlined text-purple-400">confirmation_number</span>
+                <span>Barcha Promo-kodlar Ro'yxati</span>
+              </h3>
+              <p class="text-xs text-gray-400">Talabalar to'lov paytida faqat shu yerdagi faol kodlardan foydalana oladi</p>
+            </div>
+            <button onclick="app.renderAdminPromos()" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-semibold flex items-center gap-1">
+              <span class="material-symbols-outlined text-[15px]">refresh</span> Yangilash
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-gray-300">
+              <thead class="bg-white/5 text-[11px] uppercase tracking-wider text-gray-400 border-b border-white/10">
+                <tr>
+                  <th class="py-3 px-4 font-bold">Promo-kod</th>
+                  <th class="py-3 px-4 font-bold">Chegirma</th>
+                  <th class="py-3 px-4 font-bold">Izoh</th>
+                  <th class="py-3 px-4 font-bold">Yaratilgan sana</th>
+                  <th class="py-3 px-4 font-bold">Holati</th>
+                  <th class="py-3 px-4 font-bold text-right">Amallar</th>
+                </tr>
+              </thead>
+              <tbody id="admin-promos-table-body" class="divide-y divide-white/5">
+                <tr>
+                  <td colspan="6" class="text-center py-12 text-gray-500">Promo-kodlar yuklanmoqda...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    `;
+
+    this.loadAdminPromos();
+  },
+
+  async loadAdminPromos() {
+    const tbody = document.getElementById('admin-promos-table-body');
+    const totalEl = document.getElementById('stat-total-promos');
+    const activeEl = document.getElementById('stat-active-promos');
+    if (!tbody) return;
+
+    const res = await api('/api/admin/promos');
+    const promos = res.success && res.data ? res.data : [];
+
+    if (totalEl) totalEl.innerText = promos.length;
+    if (activeEl) activeEl.innerText = promos.filter(p => p.isActive).length;
+
+    if (!promos.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center py-12 text-gray-500">
+            Hozircha hech qanday promo-kod mavjud emas. Yuqoridagi tugma orqali yangi promo-kod yarating.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = promos.map(p => {
+      const createdDate = p.createdAt ? new Date(p.createdAt).toLocaleDateString('uz-UZ') : 'Yaqinda';
+      const isActive = p.isActive !== false;
+
+      return `
+        <tr class="hover:bg-white/[0.02] transition">
+          <td class="py-3.5 px-4 font-mono font-black text-amber-300 text-sm tracking-wider">
+            ${this.escapeHtml(p.code)}
+          </td>
+          <td class="py-3.5 px-4">
+            <span class="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-black text-xs">
+              -${p.discountPercent || 20}%
+            </span>
+          </td>
+          <td class="py-3.5 px-4 text-gray-300 max-w-xs truncate">
+            ${this.escapeHtml(p.description || 'Admin chegirma kodi')}
+          </td>
+          <td class="py-3.5 px-4 text-gray-400 font-mono text-[11px]">
+            ${createdDate}
+          </td>
+          <td class="py-3.5 px-4">
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">
+              ${isActive ? 'Faol' : 'Nofaol'}
+            </span>
+          </td>
+          <td class="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
+            <button onclick="app.togglePromoActive('${this.escapeJs(p.code)}')" class="px-2.5 py-1.5 rounded-lg ${isActive ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'} font-semibold text-[11px] transition">
+              ${isActive ? 'Nofaol qilish' : 'Faollashtirish'}
+            </button>
+            <button onclick="app.deleteAdminPromo('${this.escapeJs(p.code)}')" class="px-2.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-semibold text-[11px] transition">
+              O'chirish
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  },
+
+  openCreatePromoModal() {
+    this.openModal(`
+      <div class="space-y-5">
+        <div class="flex items-center gap-3 pb-3 border-b border-white/10">
+          <div class="w-10 h-10 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-500/30 flex items-center justify-center text-xl shrink-0">
+            🏷️
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white font-heading">Yangi Promo-kod Yaratish</h3>
+            <p class="text-xs text-gray-400">Ushbu promo-kod orqali talabalar to'lovda chegirmaga ega bo'ladi</p>
+          </div>
+        </div>
+
+        <form onsubmit="app.handleCreatePromoSubmit(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-300 mb-1">Promo-kod Nomi</label>
+            <input type="text" id="new-promo-code" required placeholder="Masalan: BEHRUZ2026 yoki TALABA50" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white font-mono uppercase font-bold text-xs focus:outline-none focus:border-amber-400 placeholder:normal-case placeholder:font-sans placeholder:font-normal" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-300 mb-1">Chegirma Miqdori (%)</label>
+            <select id="new-promo-discount" required class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-amber-400">
+              <option value="10" class="bg-[#14161f]">10% Chegirma</option>
+              <option value="20" class="bg-[#14161f]" selected>20% Chegirma (Standart)</option>
+              <option value="30" class="bg-[#14161f]">30% Chegirma</option>
+              <option value="50" class="bg-[#14161f]">50% Chegirma</option>
+              <option value="70" class="bg-[#14161f]">70% Chegirma</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-300 mb-1">Tavsif / Izoh</label>
+            <input type="text" id="new-promo-desc" placeholder="Masalan: A'lochi talabalar uchun maxsus chegirma" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-amber-400" />
+          </div>
+
+          <button type="submit" id="btn-save-promo" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-extrabold text-xs shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-1.5">
+            <span class="material-symbols-outlined text-[16px]">check</span>
+            <span>Promo-kodni Saqlash</span>
+          </button>
+        </form>
+      </div>
+    `);
+  },
+
+  async handleCreatePromoSubmit(e) {
+    e.preventDefault();
+    const code = document.getElementById('new-promo-code')?.value.trim().toUpperCase();
+    const discountPercent = Number(document.getElementById('new-promo-discount')?.value) || 20;
+    const description = document.getElementById('new-promo-desc')?.value.trim() || 'Admin promo-kodi';
+
+    if (!code) {
+      showToast('Promo-kod nomini kiriting!', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-save-promo');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = 'Saqlanmoqda...';
+    }
+
+    const res = await api('/api/admin/promos', {
+      method: 'POST',
+      body: JSON.stringify({ code, discountPercent, description, isActive: true })
+    });
+
+    if (res.success) {
+      showToast('Yangi promo-kod muvaffaqiyatli yaratildi!', 'success');
+      this.closeModal();
+      this.loadAdminPromos();
+    } else {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">check</span> <span>Promo-kodni Saqlash</span>';
+      }
+      showToast(res.message || 'Promo-kod yaratishda xatolik', 'error');
+    }
+  },
+
+  async togglePromoActive(code) {
+    const res = await api(`/api/admin/promos/${encodeURIComponent(code)}/toggle`, { method: 'PUT' });
+    if (res.success) {
+      showToast(res.message || 'Holat yangilandi', 'success');
+      this.loadAdminPromos();
+    } else {
+      showToast(res.message || 'Xatolik', 'error');
+    }
+  },
+
+  async deleteAdminPromo(code) {
+    if (!confirm(`Haqiqatdan ham «${code}» promo-kodini o'chirmoqchimisiz?`)) return;
+    const res = await api(`/api/admin/promos/${encodeURIComponent(code)}`, { method: 'DELETE' });
+    if (res.success) {
+      showToast('Promo-kod o\'chirildi', 'success');
+      this.loadAdminPromos();
+    } else {
+      showToast(res.message || 'Xatolik', 'error');
+    }
+  },
+
+  // ----------------------------------------------------
   // NOVA AI SOCRATIC ASSISTANT ENGINE
   // ----------------------------------------------------
   toggleAiDrawer(forceOpen) {
@@ -7032,39 +7474,6 @@ const app = {
           <div class="col-span-full py-12 text-center text-gray-500">Tariflar yuklanmoqda...</div>
         </div>
 
-        <!-- Lifetime Plan Banner -->
-        <div class="glass-panel p-8 sm:p-10 rounded-3xl border border-amber-500/40 bg-gradient-to-r from-amber-950/30 via-purple-950/20 to-black relative overflow-hidden shadow-2xl">
-          <div class="absolute -right-12 -top-12 w-64 h-64 rounded-full bg-amber-500/10 blur-3xl pointer-events-none"></div>
-          
-          <div class="flex flex-col lg:flex-row items-center justify-between gap-6 relative z-10">
-            <div class="space-y-2 text-center lg:text-left">
-              <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[11px] font-bold">
-                <span>🌟 UMRBOD IMTIYOZ</span>
-              </div>
-              <h3 class="text-2xl sm:text-3xl font-black font-heading text-white">LIFETIME VIP — Umrbod Kirish</h3>
-              <p class="text-xs sm:text-sm text-gray-300 max-w-xl leading-relaxed">
-                Bir marta to'lang va kelajakdagi barcha yangi kurslar, testlar va AI imkoniyatlaridan abadiy cheklovlarsiz foydalaning.
-              </p>
-            </div>
-
-            <div class="text-center lg:text-right shrink-0">
-              <div class="text-2xl sm:text-3xl font-black text-amber-300 font-heading">890,000 UZS</div>
-              <p class="text-[11px] text-gray-400 mb-3">Bir martalik to'lov (Umrbod)</p>
-              ${isAdmin ? `
-                <a href="#/admin/users" class="px-6 py-3 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold text-xs inline-flex items-center gap-2 hover:bg-amber-500/30 transition">
-                  <span class="material-symbols-outlined text-[16px]">admin_panel_settings</span>
-                  <span>Admin Boshqaruvi</span>
-                </a>
-              ` : `
-                <button onclick="app.openCheckoutModal('lifetime', 'Lifetime VIP', '890,000 UZS')" class="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-black text-xs shadow-xl shadow-amber-500/20 transition transform hover:scale-105 inline-flex items-center gap-2">
-                  <span class="material-symbols-outlined text-[16px]">all_inclusive</span>
-                  <span>Umrbod Rejaga Ulanish</span>
-                </button>
-              `}
-            </div>
-          </div>
-        </div>
-
         <!-- FAQ / Feature Comparison Section -->
         <div class="glass-panel p-8 sm:p-10 rounded-3xl border border-white/5 space-y-6">
           <h3 class="text-xl font-bold text-white font-heading text-center">Nima uchun PRO obunani tanlashadi?</h3>
@@ -7113,18 +7522,18 @@ const app = {
 
     const plans = plansRes.success && plansRes.data ? plansRes.data : [];
     const status = statusRes.success && statusRes.data ? statusRes.data : null;
-    const currentPlanId = status ? (status.planName || 'free').toLowerCase() : (state.user?.isPremium ? 'pro' : 'free');
+    const currentPlanId = status ? (status.planName || 'free').toLowerCase() : (state.user?.isPremium ? (state.user?.premiumPlan?.toLowerCase() || 'pro') : 'free');
     const isAdmin = state.user?.role === 'Admin';
 
-    const displayPlans = plans.filter(p => p.id !== 'lifetime'); // lifetime is shown in dedicated banner
+    const displayPlans = plans.filter(p => p.id !== 'lifetime');
 
     grid.innerHTML = displayPlans.map(p => {
       const isCurrent = currentPlanId === p.id.toLowerCase() && (p.id === 'free' || state.user?.isPremium);
       const isPro = p.id === 'pro';
       const isVip = p.id === 'vip';
       const isFree = p.id === 'free';
-      const priceText = p.formattedPrice || p.priceFormatted || '0 UZS';
-      const periodText = p.billingPeriod || p.period || 'oy';
+      const priceText = p.formattedPrice || (p.price ? p.price.toLocaleString('uz-UZ') + ' so\'m' : '0 so\'m');
+      const periodText = p.billingPeriod || 'oy';
 
       let cardBorder = 'border-white/10';
       let cardGlow = '';
@@ -7199,7 +7608,7 @@ const app = {
   },
 
   // ----------------------------------------------------
-  // PROMO-CODE MODAL & HANDLERS (20% DISCOUNT SYSTEM)
+  // PROMO-CODE MODAL & HANDLERS (ADMIN PROMO DISCOUNT SYSTEM)
   // ----------------------------------------------------
   openPromoModal() {
     if (state.user?.role === 'Admin') {
@@ -7214,23 +7623,23 @@ const app = {
             🏷️
           </div>
           <h3 class="text-xl font-bold font-heading text-white">Chegirma Promo-kodi</h3>
-          <p class="text-xs text-gray-400">Admin tomonidan berilgan maxsus promo-kod orqali to'lovga <strong class="text-amber-400">20% chegirma</strong> oling.</p>
+          <p class="text-xs text-gray-400">Admin tomonidan berilgan rasmiy promo-kod orqali to'lovga chegirma oling.</p>
         </div>
 
         <form onsubmit="app.submitPromoCode(event)" class="space-y-4">
           <div>
             <label class="block text-xs font-semibold text-gray-300 mb-1.5">Promo-kod</label>
-            <input type="text" id="input-promo-code" required placeholder="Promo-kodni kiriting" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white uppercase tracking-wider font-mono font-bold text-center text-sm focus:outline-none focus:border-purple-400 placeholder:normal-case placeholder:font-sans placeholder:font-normal placeholder:tracking-normal" />
+            <input type="text" id="input-promo-code" required placeholder="Masalan: BEHRUZ2026" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white uppercase tracking-wider font-mono font-bold text-center text-sm focus:outline-none focus:border-purple-400 placeholder:normal-case placeholder:font-sans placeholder:font-normal placeholder:tracking-normal" />
           </div>
 
           <div class="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs flex items-center gap-2.5">
             <span class="material-symbols-outlined text-lg text-purple-400 shrink-0">percent</span>
-            <span>Promo-kod to'lov summasidan <strong>20% chegirma</strong> qiladi va to'lov sahifasida qo'llaniladi.</span>
+            <span>Promo-kod to'lov summasidan chegirma beradi va to'lov sahifasida qo'llaniladi.</span>
           </div>
 
           <button type="submit" id="btn-submit-promo" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs glow-button-primary transition flex items-center justify-center gap-2">
             <span class="material-symbols-outlined text-[16px]">check</span>
-            <span>20% Chegirma Bilan To'lovga O'tish</span>
+            <span>Chegirma Bilan To'lovga O'tish</span>
           </button>
         </form>
       </div>
@@ -7252,21 +7661,21 @@ const app = {
 
     if (res.success && res.data && res.data.isValid) {
       this.pendingPromoCode = code.toUpperCase();
+      this.pendingPromoDiscount = res.data.discountPercent || 20;
       this.closeModal();
-      showToast('🎉 Promo-kod tasdiqlandi! 20% chegirma taqdim etildi.', 'success');
-      // Open Checkout with PRO plan and pre-applied promo code
+      showToast(`🎉 Promo-kod tasdiqlandi! ${this.pendingPromoDiscount}% chegirma taqdim etildi.`, 'success');
       this.openCheckoutModal('pro', 'PRO Oylik', '49,000 so\'m');
     } else {
       showToast(res.message || 'Noto\'g\'ri yoki muddati o\'tgan promo-kod', 'error');
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">check</span> <span>20% Chegirma Bilan To\'lovga O\'tish</span>';
+        btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">check</span> <span>Chegirma Bilan To\'lovga O\'tish</span>';
       }
     }
   },
 
   // ----------------------------------------------------
-  // CHECKOUT MODAL & PAYME / CLICK INTEGRATION WITH 20% DISCOUNT
+  // CHECKOUT MODAL & PAYME / CLICK INTEGRATION
   // ----------------------------------------------------
   openCheckoutModal(planId, planName, priceFormatted) {
     if (!state.user) {
@@ -7280,7 +7689,7 @@ const app = {
       return;
     }
 
-    const baseAmount = planId === 'vip' ? 390000 : (planId === 'lifetime' ? 890000 : 49000);
+    const baseAmount = planId === 'vip' ? 79000 : 49000;
     this.currentCheckoutState = {
       planId,
       planName,
@@ -7315,7 +7724,7 @@ const app = {
         <div class="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 space-y-2">
           <div class="flex items-center justify-between">
             <label class="text-xs font-bold text-purple-300 flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-[15px] text-amber-400">confirmation_number</span> Promo-kod (20% chegirma):
+              <span class="material-symbols-outlined text-[15px] text-amber-400">confirmation_number</span> Promo-kod:
             </label>
             <span id="checkout-promo-badge" class="text-[10px] text-gray-400">${this.pendingPromoCode ? '<span class="text-emerald-400 font-bold">Faol</span>' : 'Ixtiyoriy'}</span>
           </div>
@@ -7385,7 +7794,6 @@ const app = {
       </div>
     `);
 
-    // If pending promo was already set, auto-trigger application
     if (this.pendingPromoCode) {
       setTimeout(() => this.applyCheckoutPromo(planId), 100);
     }
@@ -7421,11 +7829,12 @@ const app = {
 
     if (res.success && res.data && res.data.isValid) {
       const stateObj = this.currentCheckoutState || {
-        baseAmount: planId === 'vip' ? 390000 : (planId === 'lifetime' ? 890000 : 49000)
+        baseAmount: planId === 'vip' ? 79000 : 49000
       };
 
       const baseAmount = stateObj.baseAmount;
-      const discount = Math.round(baseAmount * 0.20);
+      const discountPercent = res.data.discountPercent || 20;
+      const discount = Math.round(baseAmount * (discountPercent / 100));
       const discountedAmount = baseAmount - discount;
 
       stateObj.currentAmount = discountedAmount;
@@ -7446,19 +7855,19 @@ const app = {
       }
 
       if (btnPayText) {
-        btnPayText.textContent = `To'lash: ${newFormatted} (-20% chegirma)`;
+        btnPayText.textContent = `To'lash: ${newFormatted} (-${discountPercent}% chegirma)`;
       }
 
       if (badge) {
-        badge.innerHTML = '<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[10px]">-20% Chegirma</span>';
+        badge.innerHTML = `<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[10px]">-${discountPercent}% Chegirma</span>`;
       }
 
       if (msg) {
         msg.className = 'text-[11px] text-emerald-400 block';
-        msg.innerHTML = `🎉 <strong>${code.toUpperCase()}</strong> kodi qo'llanildi! Siz <strong>${discount.toLocaleString('uz-UZ')} so'm</strong> (20%) tejab qoldingiz.`;
+        msg.innerHTML = `🎉 <strong>${code.toUpperCase()}</strong> kodi qo'llanildi! Siz <strong>${discount.toLocaleString('uz-UZ')} so'm</strong> (${discountPercent}%) tejab qoldingiz.`;
       }
 
-      showToast(`20% chegirma qo'llanildi: -${discount.toLocaleString('uz-UZ')} so'm`, 'success');
+      showToast(`${discountPercent}% chegirma qo'llanildi: -${discount.toLocaleString('uz-UZ')} so'm`, 'success');
     } else {
       if (msg) {
         msg.className = 'text-[11px] text-rose-400 block';
@@ -7524,8 +7933,9 @@ const app = {
     const phone = document.getElementById('pay-card-phone')?.value.trim();
     const method = document.querySelector('input[name="pay-method"]:checked')?.value || 'Payme';
     const promoCode = this.currentCheckoutState?.isPromoApplied ? this.currentCheckoutState.promoCode : null;
-    const finalAmount = this.currentCheckoutState?.currentAmount || (planId === 'vip' ? 390000 : (planId === 'lifetime' ? 890000 : 49000));
+    const finalAmount = this.currentCheckoutState?.currentAmount || (planId === 'vip' ? 79000 : 49000);
     const finalPriceFormatted = finalAmount.toLocaleString('uz-UZ') + ' so\'m';
+    const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
     if (!cardNum || cardNum.length < 16) {
       showToast('Iltimos, 16 xonali karta raqamini to\'liq kiriting', 'error');
@@ -7551,8 +7961,8 @@ const app = {
 
         <form onsubmit="app.finalizePayment(event, '${planId}', '${method}', '${cardNum}', '${cardExp}', '${phone}', '${this.escapeJs(planName)}', '${this.escapeJs(finalPriceFormatted)}', '${this.escapeJs(promoCode || '')}')" class="space-y-4">
           <div>
-            <input type="text" id="pay-sms-otp" required value="123456" maxlength="6" class="w-full max-w-[200px] mx-auto px-4 py-3 rounded-xl bg-white/5 border border-white/20 text-white font-mono text-center font-bold text-lg tracking-[0.3em] focus:outline-none focus:border-amber-400" />
-            <div class="text-[11px] text-gray-500 mt-2">Tasdiqlash kodi: <strong class="text-amber-400">123456</strong></div>
+            <input type="text" id="pay-sms-otp" required value="${randomOtp}" maxlength="6" class="w-full max-w-[200px] mx-auto px-4 py-3 rounded-xl bg-white/5 border border-white/20 text-white font-mono text-center font-bold text-lg tracking-[0.3em] focus:outline-none focus:border-amber-400" />
+            <div class="text-[11px] text-gray-500 mt-2">Tasdiqlash kodi: <strong class="text-amber-400">${randomOtp}</strong></div>
           </div>
 
           <button type="submit" id="btn-confirm-pay" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs shadow-xl shadow-amber-500/20 transition flex items-center justify-center gap-2">
@@ -7719,8 +8129,8 @@ const app = {
             <span class="material-symbols-outlined text-sky-400 text-lg">send</span>
             <span>Tezkor javob olish uchun Telegram orqali ham bog'lanishingiz mumkin</span>
           </div>
-          <a href="https://t.me/TestPlatformAdmin" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black text-xs font-bold transition whitespace-nowrap shadow-sm">
-            @TestPlatformAdmin
+          <a href="https://t.me/Sagdullayev_Behruz" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black text-xs font-bold transition whitespace-nowrap shadow-sm">
+            @Sagdullayev_Behruz
           </a>
         </div>
 
@@ -7927,9 +8337,9 @@ const app = {
                 Shoshilinch savollar yoki to'lov masalalari bo'yicha Telegram orqali xabar qoldiring. Administratorlar 10-15 daqiqa ichida javob berishadi.
               </p>
 
-              <a href="https://t.me/TestPlatformAdmin" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-extrabold text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-sky-500/20">
+              <a href="https://t.me/Sagdullayev_Behruz" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-extrabold text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-sky-500/20">
                 <span class="material-symbols-outlined text-[16px]">send</span>
-                <span>Telegram: @TestPlatformAdmin</span>
+                <span>Telegram: @Sagdullayev_Behruz</span>
               </a>
             </div>
 
