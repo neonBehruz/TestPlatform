@@ -37,3 +37,5 @@ Thumbs.db
 ## Local appsettings with private keys (optional override)
 appsettings.Development.json
 appsettings.Local.json
+
+.vercel

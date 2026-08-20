@@ -5249,6 +5249,7 @@ const app = {
                 </div>
               </div>
               <div id="admin-recent-tests-list" class="space-y-2 text-xs text-gray-400">Yuklanmoqda...</div>
+              <div id="admin-dashboard-tests-pagination" class="hidden pt-3 border-t border-white/10 flex items-center justify-between gap-3 flex-wrap"></div>
             </div>
           </div>
 
@@ -5348,40 +5349,94 @@ const app = {
     // 2. Fetch Announcements for Admin
     this.loadAdminAnnouncements();
 
-    // 3. Fetch Recent Tests
-    const testsRes = await api('/api/tests?page=1&pageSize=6');
+    // 3. Fetch Recent Tests with Pagination (10 per page)
+    const testsRes = await api('/api/tests?page=1&pageSize=1000');
     const testsContainer = document.getElementById('admin-recent-tests-list');
-    const recentTests = Array.isArray(testsRes.data) ? testsRes.data : (testsRes.data?.items || []);
-    if (testsRes.success && recentTests.length > 0) {
-      testsContainer.innerHTML = recentTests.map(t => `
-        <div class="p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-2">
-              <span class="font-bold text-white text-sm truncate">${t.title}</span>
-              <span class="text-gray-500 text-xs shrink-0">(${t.questionsCount || 0} ta savol • ${t.timeLimitMinutes} daq)</span>
+    const testsPaginationEl = document.getElementById('admin-dashboard-tests-pagination');
+    const allDashboardTests = Array.isArray(testsRes.data) ? testsRes.data : (testsRes.data?.items || []);
+
+    if (testsRes.success && allDashboardTests.length > 0) {
+      const PAGE_SIZE = 10;
+      const totalPages = Math.ceil(allDashboardTests.length / PAGE_SIZE);
+      let currentPage = 1;
+
+      const renderDashboardTestsPage = (pg) => {
+        currentPage = Math.max(1, Math.min(pg, totalPages));
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const pageTests = allDashboardTests.slice(start, start + PAGE_SIZE);
+
+        testsContainer.innerHTML = pageTests.map(t => `
+          <div class="p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-white text-sm truncate">${t.title}</span>
+                <span class="text-gray-500 text-xs shrink-0">(${t.questionsCount || 0} ta savol • ${t.timeLimitMinutes} daq)</span>
+              </div>
+              <div class="text-[11px] text-gray-400 mt-0.5 truncate">${t.subjectName || ''}</div>
             </div>
-            <div class="text-[11px] text-gray-400 mt-0.5 truncate">${t.subjectName || ''}</div>
+            <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
+              <button onclick="app.togglePublishTest('${t.id}', ${!t.isPublished}, true)" class="px-2.5 py-1 rounded-lg text-[11px] font-bold border transition flex items-center gap-1.5 ${t.isPublished ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-rose-500/20 hover:text-rose-400' : 'bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-emerald-500/20 hover:text-emerald-400'}">
+                <span class="material-symbols-outlined text-[13px]">${t.isPublished ? 'visibility' : 'visibility_off'}</span>
+                <span>${t.isPublished ? 'Nashr qilingan' : 'Qoralama'}</span>
+              </button>
+              <a href="#/admin/add-question/${t.id}" class="px-2.5 py-1 rounded-lg bg-blue-600/20 text-blue-400 font-semibold hover:bg-blue-600/30 border border-blue-500/20 text-[11px] flex items-center gap-1 transition">
+                <span class="material-symbols-outlined text-[13px]">help</span> + Savol
+              </a>
+              <a href="#/admin/bulk-import/${t.id}" class="p-1.5 rounded-lg bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/20 transition flex items-center justify-center" title="JSON orqali savollar yuklash">
+                <span class="material-symbols-outlined text-[15px]">upload_file</span>
+              </a>
+              <a href="#/admin/edit-test/${t.id}" class="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 transition flex items-center justify-center" title="Testni tahrirlash">
+                <span class="material-symbols-outlined text-[15px]">edit</span>
+              </a>
+              <button onclick="app.deleteTest('${t.id}', true)" class="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 transition flex items-center justify-center" title="Testni o'chirish">
+                <span class="material-symbols-outlined text-[15px]">delete</span>
+              </button>
+            </div>
           </div>
-          <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
-            <button onclick="app.togglePublishTest('${t.id}', ${!t.isPublished}, true)" class="px-2.5 py-1 rounded-lg text-[11px] font-bold border transition flex items-center gap-1.5 ${t.isPublished ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-rose-500/20 hover:text-rose-400' : 'bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-emerald-500/20 hover:text-emerald-400'}">
-              <span class="material-symbols-outlined text-[13px]">${t.isPublished ? 'visibility' : 'visibility_off'}</span>
-              <span>${t.isPublished ? 'Nashr qilingan' : 'Qoralama'}</span>
-            </button>
-            <a href="#/admin/add-question/${t.id}" class="px-2.5 py-1 rounded-lg bg-blue-600/20 text-blue-400 font-semibold hover:bg-blue-600/30 border border-blue-500/20 text-[11px] flex items-center gap-1 transition">
-              <span class="material-symbols-outlined text-[13px]">help</span> + Savol
-            </a>
-            <a href="#/admin/bulk-import/${t.id}" class="p-1.5 rounded-lg bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/20 transition flex items-center justify-center" title="JSON orqali savollar yuklash">
-              <span class="material-symbols-outlined text-[15px]">upload_file</span>
-            </a>
-            <a href="#/admin/edit-test/${t.id}" class="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 transition flex items-center justify-center" title="Testni tahrirlash">
-              <span class="material-symbols-outlined text-[15px]">edit</span>
-            </a>
-            <button onclick="app.deleteTest('${t.id}', true)" class="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 transition flex items-center justify-center" title="Testni o'chirish">
-              <span class="material-symbols-outlined text-[15px]">delete</span>
-            </button>
-          </div>
-        </div>
-      `).join('');
+        `).join('');
+
+        if (totalPages > 1 && testsPaginationEl) {
+          testsPaginationEl.classList.remove('hidden');
+
+          const startNum = start + 1;
+          const endNum = Math.min(start + PAGE_SIZE, allDashboardTests.length);
+          let pageButtons = '';
+          for (let i = 1; i <= totalPages; i++) {
+            const isActive = i === currentPage;
+            pageButtons += `
+              <button onclick="app._dashboardTestsGoPage(${i})"
+                class="w-7 h-7 rounded-lg text-xs font-bold transition ${isActive
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                }">
+                ${i}
+              </button>`;
+          }
+
+          testsPaginationEl.innerHTML = `
+            <div class="text-xs text-gray-400">
+              <span class="text-white font-semibold">${startNum}–${endNum}</span> / ${allDashboardTests.length} ta test &nbsp;·&nbsp;
+              <span class="text-blue-400 font-semibold">${currentPage}-qism</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <button onclick="app._dashboardTestsGoPage(${currentPage - 1})"
+                ${currentPage === 1 ? 'disabled' : ''}
+                class="w-7 h-7 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center">
+                <span class="material-symbols-outlined text-[14px]">chevron_left</span>
+              </button>
+              ${pageButtons}
+              <button onclick="app._dashboardTestsGoPage(${currentPage + 1})"
+                ${currentPage === totalPages ? 'disabled' : ''}
+                class="w-7 h-7 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center">
+                <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+              </button>
+            </div>
+          `;
+        }
+      };
+
+      this._dashboardTestsGoPage = (pg) => renderDashboardTestsPage(pg);
+      renderDashboardTestsPage(currentPage);
     } else {
       testsContainer.innerHTML = `
         <div class="p-6 rounded-2xl bg-white/5 text-center space-y-2">
@@ -7202,7 +7257,7 @@ const app = {
   // ----------------------------------------------------
   // ADMIN: USER MANAGEMENT
   // ----------------------------------------------------
-  async renderAdminUsers() {
+  async renderAdminUsers(page = 1) {
     const root = document.getElementById('app-root');
     root.innerHTML = `
       <div class="space-y-6 animate-fadeIn pb-12">
@@ -7225,47 +7280,104 @@ const app = {
               </tbody>
             </table>
           </div>
+          <!-- Pagination -->
+          <div id="admin-users-pagination" class="hidden px-6 py-4 border-t border-white/10 flex items-center justify-between gap-3 flex-wrap"></div>
         </div>
       </div>
     `;
 
     const res = await api('/api/users');
     const tbody = document.getElementById('admin-users-table-body');
-    if (res.success && res.data && res.data.length > 0) {
-      tbody.innerHTML = res.data.map(u => {
-        const isPro = u.isPremium || u.premiumPlan === 'Pro' || u.premiumPlan === 'VIP' || u.premiumPlan === 'Lifetime';
-        const isVip = u.premiumPlan === 'VIP' || u.premiumPlan === 'Lifetime';
-        const planBadge = isVip ? '<span class="badge-vip">💎 VIP</span>' : (isPro ? '<span class="badge-pro">👑 PRO</span>' : '<span class="px-2 py-0.5 rounded bg-white/5 text-gray-400 text-[10px]">Standart</span>');
+    const paginationEl = document.getElementById('admin-users-pagination');
+    const allUsers = (res.success && res.data && Array.isArray(res.data)) ? res.data : [];
 
-        return `
-          <tr class="hover:bg-white/5 transition">
-            <td class="px-6 py-4 font-bold text-white flex items-center gap-1.5">
-              <span>${this.escapeHtml(u.fullName)}</span>
-            </td>
-            <td class="px-6 py-4 text-gray-400">${this.escapeHtml(u.email)}</td>
-            <td class="px-6 py-4 text-center">
-              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${u.role === 'Admin' ? 'bg-amber-500/20 text-amber-300' : 'bg-blue-500/20 text-blue-400'}">
-                ${u.role}
-              </span>
-            </td>
-            <td class="px-6 py-4 text-center">
-              ${planBadge}
-            </td>
-            <td class="px-6 py-4 text-right">
-              <div class="flex items-center justify-end gap-2">
-                ${u.role !== 'Admin' ? `
-                  <button onclick="app.openGrantProModal('${u.id}', '${this.escapeJs(u.fullName)}')" class="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[11px] font-bold transition flex items-center gap-1" title="PRO/VIP tarif berish">
-                    <span class="material-symbols-outlined text-[14px]">workspace_premium</span> PRO berish
-                  </button>
-                  <button onclick="app.deleteUser('${u.id}', '${this.escapeJs(u.fullName)}')" class="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20" title="O'chirish">
-                    <span class="material-symbols-outlined text-[16px]">delete</span>
-                  </button>
-                ` : '<span class="text-gray-600 text-[11px]">Asosiy</span>'}
-              </div>
-            </td>
-          </tr>
-        `;
-      }).join('');
+    if (allUsers.length > 0) {
+      const PAGE_SIZE = 10;
+      const totalPages = Math.ceil(allUsers.length / PAGE_SIZE);
+      let currentPage = Math.max(1, Math.min(page, totalPages));
+
+      const renderPage = (pg) => {
+        currentPage = Math.max(1, Math.min(pg, totalPages));
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const pageUsers = allUsers.slice(start, start + PAGE_SIZE);
+
+        tbody.innerHTML = pageUsers.map(u => {
+          const isPro = u.isPremium || u.premiumPlan === 'Pro' || u.premiumPlan === 'VIP' || u.premiumPlan === 'Lifetime';
+          const isVip = u.premiumPlan === 'VIP' || u.premiumPlan === 'Lifetime';
+          const planBadge = isVip ? '<span class="badge-vip">💎 VIP</span>' : (isPro ? '<span class="badge-pro">👑 PRO</span>' : '<span class="px-2 py-0.5 rounded bg-white/5 text-gray-400 text-[10px]">Standart</span>');
+
+          return `
+            <tr class="hover:bg-white/5 transition">
+              <td class="px-6 py-4 font-bold text-white flex items-center gap-1.5">
+                <span>${this.escapeHtml(u.fullName)}</span>
+              </td>
+              <td class="px-6 py-4 text-gray-400">${this.escapeHtml(u.email)}</td>
+              <td class="px-6 py-4 text-center">
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${u.role === 'Admin' ? 'bg-amber-500/20 text-amber-300' : 'bg-blue-500/20 text-blue-400'}">
+                  ${u.role}
+                </span>
+              </td>
+              <td class="px-6 py-4 text-center">
+                ${planBadge}
+              </td>
+              <td class="px-6 py-4 text-right">
+                <div class="flex items-center justify-end gap-2">
+                  ${u.role !== 'Admin' ? `
+                    <button onclick="app.openGrantProModal('${u.id}', '${this.escapeJs(u.fullName)}')" class="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[11px] font-bold transition flex items-center gap-1" title="PRO/VIP tarif berish">
+                      <span class="material-symbols-outlined text-[14px]">workspace_premium</span> PRO berish
+                    </button>
+                    <button onclick="app.deleteUser('${u.id}', '${this.escapeJs(u.fullName)}')" class="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20" title="O'chirish">
+                      <span class="material-symbols-outlined text-[16px]">delete</span>
+                    </button>
+                  ` : '<span class="text-gray-600 text-[11px]">Asosiy</span>'}
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        if (totalPages > 1 && paginationEl) {
+          paginationEl.classList.remove('hidden');
+
+          const startNum = start + 1;
+          const endNum = Math.min(start + PAGE_SIZE, allUsers.length);
+          let pageButtons = '';
+          for (let i = 1; i <= totalPages; i++) {
+            const isActive = i === currentPage;
+            pageButtons += `
+              <button onclick="app._adminUsersGoPage(${i})"
+                class="w-8 h-8 rounded-lg text-xs font-bold transition ${isActive
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                }">
+                ${i}
+              </button>`;
+          }
+
+          paginationEl.innerHTML = `
+            <div class="text-xs text-gray-400">
+              <span class="text-white font-semibold">${startNum}–${endNum}</span> / ${allUsers.length} ta foydalanuvchi &nbsp;·&nbsp;
+              <span class="text-blue-400 font-semibold">${currentPage}-qism</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button onclick="app._adminUsersGoPage(${currentPage - 1})"
+                ${currentPage === 1 ? 'disabled' : ''}
+                class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center">
+                <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+              </button>
+              ${pageButtons}
+              <button onclick="app._adminUsersGoPage(${currentPage + 1})"
+                ${currentPage === totalPages ? 'disabled' : ''}
+                class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center">
+                <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+              </button>
+            </div>
+          `;
+        }
+      };
+
+      this._adminUsersGoPage = (pg) => renderPage(pg);
+      renderPage(currentPage);
     } else {
       tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-500">Foydalanuvchilar topilmadi.</td></tr>`;
     }
@@ -7328,56 +7440,113 @@ const app = {
               </tbody>
             </table>
           </div>
+          <!-- Pagination -->
+          <div id="admin-audit-pagination" class="hidden px-6 py-4 border-t border-white/10 flex items-center justify-between gap-3 flex-wrap"></div>
         </div>
       </div>
     `;
 
-    const res = await api('/api/audit-logs?top=50');
+    const res = await api('/api/audit-logs?top=500');
     const tbody = document.getElementById('admin-audit-table-body');
+    const paginationEl = document.getElementById('admin-audit-pagination');
     if (!tbody) return;
 
-    if (res.success && res.data && res.data.length > 0) {
-      tbody.innerHTML = res.data.map(log => {
-        const actionUpper = (log.action || '').toUpperCase();
-        let badgeClass = 'bg-blue-500/20 text-blue-300 border-blue-500/30';
-        if (actionUpper.includes('CREATE') || actionUpper.includes('ADD') || actionUpper.includes('START') || actionUpper.includes('INIT') || actionUpper.includes('REGISTER')) {
-          badgeClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
-        } else if (actionUpper.includes('UPDATE') || actionUpper.includes('EDIT') || actionUpper.includes('CONFIG') || actionUpper.includes('SET') || actionUpper.includes('CHANGE')) {
-          badgeClass = 'bg-amber-500/20 text-amber-300 border-amber-500/30';
-        } else if (actionUpper.includes('DELETE') || actionUpper.includes('REMOVE') || actionUpper.includes('FAIL')) {
-          badgeClass = 'bg-rose-500/20 text-rose-300 border-rose-500/30';
-        } else if (actionUpper.includes('PAYMENT') || actionUpper.includes('UPGRADE') || actionUpper.includes('PREMIUM') || actionUpper.includes('PROMO') || actionUpper.includes('VIP')) {
-          badgeClass = 'bg-purple-500/20 text-purple-300 border-purple-500/30';
-        } else if (actionUpper.includes('CERTIFICATE') || actionUpper.includes('EXAM') || actionUpper.includes('SUPPORT')) {
-          badgeClass = 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
+    const allLogs = (res.success && res.data && Array.isArray(res.data)) ? res.data : [];
+
+    if (allLogs.length > 0) {
+      const PAGE_SIZE = 10;
+      const totalPages = Math.ceil(allLogs.length / PAGE_SIZE);
+      let currentPage = Math.max(1, Math.min(page, totalPages));
+
+      const renderPage = (pg) => {
+        currentPage = Math.max(1, Math.min(pg, totalPages));
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const pageLogs = allLogs.slice(start, start + PAGE_SIZE);
+
+        tbody.innerHTML = pageLogs.map(log => {
+          const actionUpper = (log.action || '').toUpperCase();
+          let badgeClass = 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+          if (actionUpper.includes('CREATE') || actionUpper.includes('ADD') || actionUpper.includes('START') || actionUpper.includes('INIT') || actionUpper.includes('REGISTER')) {
+            badgeClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+          } else if (actionUpper.includes('UPDATE') || actionUpper.includes('EDIT') || actionUpper.includes('CONFIG') || actionUpper.includes('SET') || actionUpper.includes('CHANGE')) {
+            badgeClass = 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+          } else if (actionUpper.includes('DELETE') || actionUpper.includes('REMOVE') || actionUpper.includes('FAIL')) {
+            badgeClass = 'bg-rose-500/20 text-rose-300 border-rose-500/30';
+          } else if (actionUpper.includes('PAYMENT') || actionUpper.includes('UPGRADE') || actionUpper.includes('PREMIUM') || actionUpper.includes('PROMO') || actionUpper.includes('VIP')) {
+            badgeClass = 'bg-purple-500/20 text-purple-300 border-purple-500/30';
+          } else if (actionUpper.includes('CERTIFICATE') || actionUpper.includes('EXAM') || actionUpper.includes('SUPPORT')) {
+            badgeClass = 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
+          }
+
+          const dateObj = new Date(log.createdAt);
+          const dateStr = !isNaN(dateObj) ? dateObj.toLocaleString('uz-UZ', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' 
+          }) : log.createdAt;
+
+          return `
+            <tr class="hover:bg-white/5 transition text-xs">
+              <td class="px-6 py-3.5 text-gray-400 font-mono text-[11px] whitespace-nowrap">${dateStr}</td>
+              <td class="px-6 py-3.5 text-white font-semibold">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] text-gray-300 font-bold shrink-0">${(log.userName || 'T')[0].toUpperCase()}</span>
+                  <span class="truncate max-w-[140px]">${this.escapeHtml(log.userName || 'Tizim')}</span>
+                </div>
+              </td>
+              <td class="px-6 py-3.5 whitespace-nowrap">
+                <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border ${badgeClass}">
+                  ${this.escapeHtml(log.action)}
+                </span>
+              </td>
+              <td class="px-6 py-3.5 text-gray-300 leading-relaxed max-w-md">
+                <div>${this.escapeHtml(log.details || '')}</div>
+                ${log.entityName ? `<span class="block text-[10px] text-gray-500 mt-0.5 font-mono">Obyekt: ${this.escapeHtml(log.entityName)} ${log.entityId ? `[${this.escapeHtml(log.entityId)}]` : ''}</span>` : ''}
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        if (totalPages > 1 && paginationEl) {
+          paginationEl.classList.remove('hidden');
+
+          const startNum = start + 1;
+          const endNum = Math.min(start + PAGE_SIZE, allLogs.length);
+          let pageButtons = '';
+          for (let i = 1; i <= totalPages; i++) {
+            const isActive = i === currentPage;
+            pageButtons += `
+              <button onclick="app._adminAuditGoPage(${i})"
+                class="w-8 h-8 rounded-lg text-xs font-bold transition ${isActive
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                }">
+                ${i}
+              </button>`;
+          }
+
+          paginationEl.innerHTML = `
+            <div class="text-xs text-gray-400">
+              <span class="text-white font-semibold">${startNum}–${endNum}</span> / ${allLogs.length} ta qayd &nbsp;·&nbsp;
+              <span class="text-blue-400 font-semibold">${currentPage}-qism</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button onclick="app._adminAuditGoPage(${currentPage - 1})"
+                ${currentPage === 1 ? 'disabled' : ''}
+                class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center">
+                <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+              </button>
+              ${pageButtons}
+              <button onclick="app._adminAuditGoPage(${currentPage + 1})"
+                ${currentPage === totalPages ? 'disabled' : ''}
+                class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center">
+                <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+              </button>
+            </div>
+          `;
         }
+      };
 
-        const dateObj = new Date(log.createdAt);
-        const dateStr = !isNaN(dateObj) ? dateObj.toLocaleString('uz-UZ', { 
-          year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' 
-        }) : log.createdAt;
-
-        return `
-          <tr class="hover:bg-white/5 transition text-xs">
-            <td class="px-6 py-3.5 text-gray-400 font-mono text-[11px] whitespace-nowrap">${dateStr}</td>
-            <td class="px-6 py-3.5 text-white font-semibold">
-              <div class="flex items-center gap-2">
-                <span class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] text-gray-300 font-bold shrink-0">${(log.userName || 'T')[0].toUpperCase()}</span>
-                <span class="truncate max-w-[140px]">${this.escapeHtml(log.userName || 'Tizim')}</span>
-              </div>
-            </td>
-            <td class="px-6 py-3.5 whitespace-nowrap">
-              <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border ${badgeClass}">
-                ${this.escapeHtml(log.action)}
-              </span>
-            </td>
-            <td class="px-6 py-3.5 text-gray-300 leading-relaxed max-w-md">
-              <div>${this.escapeHtml(log.details || '')}</div>
-              ${log.entityName ? `<span class="block text-[10px] text-gray-500 mt-0.5 font-mono">Obyekt: ${this.escapeHtml(log.entityName)} ${log.entityId ? `[${this.escapeHtml(log.entityId)}]` : ''}</span>` : ''}
-            </td>
-          </tr>
-        `;
-      }).join('');
+      this._adminAuditGoPage = (pg) => renderPage(pg);
+      renderPage(currentPage);
     } else {
       tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-gray-500">Hozircha audit qaydlari mavjud emas.</td></tr>`;
     }
@@ -7777,6 +7946,8 @@ const app = {
               </tbody>
             </table>
           </div>
+          <!-- Pagination -->
+          <div id="admin-promos-pagination" class="hidden px-6 py-4 border-t border-white/10 flex items-center justify-between gap-3 flex-wrap"></div>
         </div>
 
       </div>
@@ -7785,14 +7956,15 @@ const app = {
     this.loadAdminPromos();
   },
 
-  async loadAdminPromos() {
+  async loadAdminPromos(page = 1) {
     const tbody = document.getElementById('admin-promos-table-body');
     const totalEl = document.getElementById('stat-total-promos');
     const activeEl = document.getElementById('stat-active-promos');
+    const paginationEl = document.getElementById('admin-promos-pagination');
     if (!tbody) return;
 
     const res = await api('/api/admin/promos');
-    const promos = res.success && res.data ? res.data : [];
+    const promos = res.success && res.data && Array.isArray(res.data) ? res.data : [];
 
     if (totalEl) totalEl.innerText = promos.length;
     if (activeEl) activeEl.innerText = promos.filter(p => p.isActive).length;
@@ -7805,45 +7977,100 @@ const app = {
           </td>
         </tr>
       `;
+      if (paginationEl) paginationEl.classList.add('hidden');
       return;
     }
 
-    tbody.innerHTML = promos.map(p => {
-      const createdDate = p.createdAt ? new Date(p.createdAt).toLocaleDateString('uz-UZ') : 'Yaqinda';
-      const isActive = p.isActive !== false;
+    const PAGE_SIZE = 10;
+    const totalPages = Math.ceil(promos.length / PAGE_SIZE);
+    let currentPage = Math.max(1, Math.min(page, totalPages));
 
-      return `
-        <tr class="hover:bg-white/[0.02] transition">
-          <td class="py-3.5 px-4 font-mono font-black text-amber-300 text-sm tracking-wider">
-            ${this.escapeHtml(p.code)}
-          </td>
-          <td class="py-3.5 px-4">
-            <span class="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-black text-xs">
-              -${p.discountPercent || 20}%
-            </span>
-          </td>
-          <td class="py-3.5 px-4 text-gray-300 max-w-xs truncate">
-            ${this.escapeHtml(p.description || 'Admin chegirma kodi')}
-          </td>
-          <td class="py-3.5 px-4 text-gray-400 font-mono text-[11px]">
-            ${createdDate}
-          </td>
-          <td class="py-3.5 px-4">
-            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">
-              ${isActive ? 'Faol' : 'Nofaol'}
-            </span>
-          </td>
-          <td class="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
-            <button onclick="app.togglePromoActive('${this.escapeJs(p.code)}')" class="px-2.5 py-1.5 rounded-lg ${isActive ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'} font-semibold text-[11px] transition">
-              ${isActive ? 'Nofaol qilish' : 'Faollashtirish'}
+    const renderPage = (pg) => {
+      currentPage = Math.max(1, Math.min(pg, totalPages));
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const pagePromos = promos.slice(start, start + PAGE_SIZE);
+
+      tbody.innerHTML = pagePromos.map(p => {
+        const createdDate = p.createdAt ? new Date(p.createdAt).toLocaleDateString('uz-UZ') : 'Yaqinda';
+        const isActive = p.isActive !== false;
+
+        return `
+          <tr class="hover:bg-white/[0.02] transition">
+            <td class="py-3.5 px-4 font-mono font-black text-amber-300 text-sm tracking-wider">
+              ${this.escapeHtml(p.code)}
+            </td>
+            <td class="py-3.5 px-4">
+              <span class="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-black text-xs">
+                -${p.discountPercent || 20}%
+              </span>
+            </td>
+            <td class="py-3.5 px-4 text-gray-300 max-w-xs truncate">
+              ${this.escapeHtml(p.description || 'Admin chegirma kodi')}
+            </td>
+            <td class="py-3.5 px-4 text-gray-400 font-mono text-[11px]">
+              ${createdDate}
+            </td>
+            <td class="py-3.5 px-4">
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">
+                ${isActive ? 'Faol' : 'Nofaol'}
+              </span>
+            </td>
+            <td class="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
+              <button onclick="app.togglePromoActive('${this.escapeJs(p.code)}')" class="px-2.5 py-1.5 rounded-lg ${isActive ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'} font-semibold text-[11px] transition">
+                ${isActive ? 'Nofaol qilish' : 'Faollashtirish'}
+              </button>
+              <button onclick="app.deleteAdminPromo('${this.escapeJs(p.code)}')" class="px-2.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-semibold text-[11px] transition">
+                O'chirish
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      if (totalPages > 1 && paginationEl) {
+        paginationEl.classList.remove('hidden');
+
+        const startNum = start + 1;
+        const endNum = Math.min(start + PAGE_SIZE, promos.length);
+        let pageButtons = '';
+        for (let i = 1; i <= totalPages; i++) {
+          const isActive = i === currentPage;
+          pageButtons += `
+            <button onclick="app._adminPromosGoPage(${i})"
+              class="w-8 h-8 rounded-lg text-xs font-bold transition ${isActive
+                ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30'
+                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+              }">
+              ${i}
+            </button>`;
+        }
+
+        paginationEl.innerHTML = `
+          <div class="text-xs text-gray-400">
+            <span class="text-white font-semibold">${startNum}–${endNum}</span> / ${promos.length} ta promo-kod &nbsp;·&nbsp;
+            <span class="text-purple-400 font-semibold">${currentPage}-qism</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button onclick="app._adminPromosGoPage(${currentPage - 1})"
+              ${currentPage === 1 ? 'disabled' : ''}
+              class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center">
+              <span class="material-symbols-outlined text-[16px]">chevron_left</span>
             </button>
-            <button onclick="app.deleteAdminPromo('${this.escapeJs(p.code)}')" class="px-2.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-semibold text-[11px] transition">
-              O'chirish
+            ${pageButtons}
+            <button onclick="app._adminPromosGoPage(${currentPage + 1})"
+              ${currentPage === totalPages ? 'disabled' : ''}
+              class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center">
+              <span class="material-symbols-outlined text-[16px]">chevron_right</span>
             </button>
-          </td>
-        </tr>
-      `;
-    }).join('');
+          </div>
+        `;
+      } else if (paginationEl) {
+        paginationEl.classList.add('hidden');
+      }
+    };
+
+    this._adminPromosGoPage = (pg) => renderPage(pg);
+    renderPage(currentPage);
   },
 
   openCreatePromoModal() {
@@ -9306,6 +9533,9 @@ const app = {
         <div id="admin-support-list" class="space-y-4">
           <div class="p-8 text-center text-gray-500 text-xs">Murojaatlar yuklanmoqda...</div>
         </div>
+
+        <!-- Pagination -->
+        <div id="admin-support-pagination" class="hidden px-6 py-4 rounded-2xl glass-panel border border-white/10 flex items-center justify-between gap-3 flex-wrap"></div>
       </div>
     `;
 
@@ -9313,12 +9543,13 @@ const app = {
     await this.loadAdminSupportTickets();
   },
 
-  async loadAdminSupportTickets() {
+  async loadAdminSupportTickets(page = 1) {
     const container = document.getElementById('admin-support-list');
+    const paginationEl = document.getElementById('admin-support-pagination');
     if (!container) return;
 
     const res = await api('/api/support/all');
-    const tickets = (res.success && res.data) ? res.data : [];
+    const tickets = (res.success && res.data && Array.isArray(res.data)) ? res.data : [];
 
     // Update stats
     const totalEl = document.getElementById('admin-sup-total');
@@ -9339,77 +9570,132 @@ const app = {
           <p class="text-xs text-gray-400">Ushbu filtr bo'yicha hech qanday murojaat mavjud emas.</p>
         </div>
       `;
+      if (paginationEl) paginationEl.classList.add('hidden');
       return;
     }
 
-    container.innerHTML = filtered.map(t => {
-      const isResolved = t.status === 'Hal qilindi';
-      let statusBadge = isResolved 
-        ? '<span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">✅ Hal qilindi</span>'
-        : '<span class="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">🔔 Yangi</span>';
+    const PAGE_SIZE = 10;
+    const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+    let currentPage = Math.max(1, Math.min(page, totalPages));
 
-      return `
-        <div class="glass-panel p-5 sm:p-6 rounded-3xl space-y-4 border ${isResolved ? 'border-white/5 opacity-80' : 'border-amber-500/30 bg-gradient-to-r from-amber-950/10 via-[#14161f] to-[#14161f]'}">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 font-bold flex items-center justify-center text-sm shrink-0">
-                ${(t.studentName || 'U').charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <div class="flex items-center gap-2">
-                  <h4 class="font-bold text-white text-sm">${this.escapeHtml(t.studentName || 'Talaba')}</h4>
-                  <span class="px-2 py-0.5 rounded bg-white/5 text-[10px] text-gray-400">${this.escapeHtml(t.category || 'Umumiy')}</span>
+    const renderPage = (pg) => {
+      currentPage = Math.max(1, Math.min(pg, totalPages));
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const pageTickets = filtered.slice(start, start + PAGE_SIZE);
+
+      container.innerHTML = pageTickets.map(t => {
+        const isResolved = t.status === 'Hal qilindi';
+        let statusBadge = isResolved 
+          ? '<span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">✅ Hal qilindi</span>'
+          : '<span class="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">🔔 Yangi</span>';
+
+        return `
+          <div class="glass-panel p-5 sm:p-6 rounded-3xl space-y-4 border ${isResolved ? 'border-white/5 opacity-80' : 'border-amber-500/30 bg-gradient-to-r from-amber-950/10 via-[#14161f] to-[#14161f]'}">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 font-bold flex items-center justify-center text-sm shrink-0">
+                  ${(t.studentName || 'U').charAt(0).toUpperCase()}
                 </div>
-                <div class="text-[11px] text-gray-400 flex items-center gap-2 mt-0.5">
-                  <span>✉️ ${this.escapeHtml(t.studentEmail || '')}</span>
-                  ${t.contactInfo ? `<span class="text-sky-300">📱 ${this.escapeHtml(t.contactInfo)}</span>` : ''}
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h4 class="font-bold text-white text-sm">${this.escapeHtml(t.studentName || 'Talaba')}</h4>
+                    <span class="px-2 py-0.5 rounded bg-white/5 text-[10px] text-gray-400">${this.escapeHtml(t.category || 'Umumiy')}</span>
+                  </div>
+                  <div class="text-[11px] text-gray-400 flex items-center gap-2 mt-0.5">
+                    <span>✉️ ${this.escapeHtml(t.studentEmail || '')}</span>
+                    ${t.contactInfo ? `<span class="text-sky-300">📱 ${this.escapeHtml(t.contactInfo)}</span>` : ''}
+                  </div>
                 </div>
+              </div>
+
+              <div class="flex items-center gap-2 self-start sm:self-center">
+                ${statusBadge}
+                <span class="text-[11px] text-gray-500">${new Date(t.createdAt).toLocaleString()}</span>
               </div>
             </div>
 
-            <div class="flex items-center gap-2 self-start sm:self-center">
-              ${statusBadge}
-              <span class="text-[11px] text-gray-500">${new Date(t.createdAt).toLocaleString()}</span>
-            </div>
-          </div>
-
-          <div class="space-y-2">
-            <h5 class="text-sm font-bold text-white">${this.escapeHtml(t.subject)}</h5>
-            <p class="text-xs text-gray-300 leading-relaxed bg-white/5 p-3.5 rounded-2xl border border-white/5 whitespace-pre-wrap">${this.escapeHtml(t.message)}</p>
-          </div>
-
-          <div class="flex items-center justify-between pt-2">
-            <div class="flex items-center gap-2">
-              ${t.studentEmail ? `
-                <a href="mailto:${t.studentEmail}?subject=Re: ${encodeURIComponent(t.subject)}" class="px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 text-xs font-semibold transition flex items-center gap-1">
-                  <span class="material-symbols-outlined text-[15px]">mail</span> Email orqali javob berish
-                </a>
-              ` : ''}
-              ${t.contactInfo && t.contactInfo.includes('@') ? `
-                <a href="https://t.me/${t.contactInfo.replace('@', '')}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-xs font-semibold transition flex items-center gap-1">
-                  <span class="material-symbols-outlined text-[15px]">send</span> Telegramda yozish
-                </a>
-              ` : ''}
+            <div class="space-y-2">
+              <h5 class="text-sm font-bold text-white">${this.escapeHtml(t.subject)}</h5>
+              <p class="text-xs text-gray-300 leading-relaxed bg-white/5 p-3.5 rounded-2xl border border-white/5 whitespace-pre-wrap">${this.escapeHtml(t.message)}</p>
             </div>
 
-            <div class="flex items-center gap-2">
-              ${!isResolved ? `
-                <button onclick="app.updateSupportTicketStatus('${t.id}', 'Hal qilindi')" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1 shadow-sm">
-                  <span class="material-symbols-outlined text-[15px]">check</span> Hal qilindi
+            <div class="flex items-center justify-between pt-2">
+              <div class="flex items-center gap-2">
+                ${t.studentEmail ? `
+                  <a href="mailto:${t.studentEmail}?subject=Re: ${encodeURIComponent(t.subject)}" class="px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 text-xs font-semibold transition flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[15px]">mail</span> Email orqali javob berish
+                  </a>
+                ` : ''}
+                ${t.contactInfo && t.contactInfo.includes('@') ? `
+                  <a href="https://t.me/${t.contactInfo.replace('@', '')}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-xs font-semibold transition flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[15px]">send</span> Telegramda yozish
+                  </a>
+                ` : ''}
+              </div>
+
+              <div class="flex items-center gap-2">
+                ${!isResolved ? `
+                  <button onclick="app.updateSupportTicketStatus('${t.id}', 'Hal qilindi')" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1 shadow-sm">
+                    <span class="material-symbols-outlined text-[15px]">check</span> Hal qilindi
+                  </button>
+                ` : `
+                  <button onclick="app.updateSupportTicketStatus('${t.id}', 'Yangi')" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 text-xs font-semibold transition">
+                    Qayta ochish
+                  </button>
+                `}
+                <button onclick="app.deleteSupportTicket('${t.id}')" class="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition" title="O'chirish">
+                  <span class="material-symbols-outlined text-[16px]">delete</span>
                 </button>
-              ` : `
-                <button onclick="app.updateSupportTicketStatus('${t.id}', 'Yangi')" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 text-xs font-semibold transition">
-                  Qayta ochish
-                </button>
-              `}
-              <button onclick="app.deleteSupportTicket('${t.id}')" class="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition" title="O'chirish">
-                <span class="material-symbols-outlined text-[16px]">delete</span>
-              </button>
+              </div>
             </div>
           </div>
-        </div>
-      `;
-    }).join('');
+        `;
+      }).join('');
+
+      if (totalPages > 1 && paginationEl) {
+        paginationEl.classList.remove('hidden');
+
+        const startNum = start + 1;
+        const endNum = Math.min(start + PAGE_SIZE, filtered.length);
+        let pageButtons = '';
+        for (let i = 1; i <= totalPages; i++) {
+          const isActive = i === currentPage;
+          pageButtons += `
+            <button onclick="app._adminSupportGoPage(${i})"
+              class="w-8 h-8 rounded-lg text-xs font-bold transition ${isActive
+                ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/30'
+                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+              }">
+              ${i}
+            </button>`;
+        }
+
+        paginationEl.innerHTML = `
+          <div class="text-xs text-gray-400">
+            <span class="text-white font-semibold">${startNum}–${endNum}</span> / ${filtered.length} ta murojaat &nbsp;·&nbsp;
+            <span class="text-cyan-400 font-semibold">${currentPage}-qism</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button onclick="app._adminSupportGoPage(${currentPage - 1})"
+              ${currentPage === 1 ? 'disabled' : ''}
+              class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center">
+              <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+            </button>
+            ${pageButtons}
+            <button onclick="app._adminSupportGoPage(${currentPage + 1})"
+              ${currentPage === totalPages ? 'disabled' : ''}
+              class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center">
+              <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+            </button>
+          </div>
+        `;
+      } else if (paginationEl) {
+        paginationEl.classList.add('hidden');
+      }
+    };
+
+    this._adminSupportGoPage = (pg) => renderPage(pg);
+    renderPage(currentPage);
   },
 
   filterAdminSupport(filter) {
