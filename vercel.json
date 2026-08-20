@@ -1,9 +1,7 @@
 {
-  "version": 2,
-  "public": true,
+  "outputDirectory": "TestPlatform.WebApi/wwwroot",
   "cleanUrls": true,
   "trailingSlash": false,
-  "outputDirectory": "TestPlatform.WebApi/wwwroot",
   "rewrites": [
     {
       "source": "/(.*)",
