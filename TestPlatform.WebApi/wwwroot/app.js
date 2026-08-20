@@ -461,13 +461,23 @@ async function handleStandaloneFallback(endpoint, options = {}) {
   if (endpoint.startsWith('/api/student-tests/') && endpoint.endsWith('/submit')) {
     const testId = endpoint.split('/')[3];
     const found = data.tests.find(t => t.id === testId) || data.tests[0];
-    const answers = body.answers || {};
+    
+    // Normalize answers whether array of objects or key-value map
+    const answersMap = {};
+    if (Array.isArray(body.answers)) {
+      body.answers.forEach(a => {
+        if (a && a.questionId) answersMap[a.questionId] = a.selectedOptionId;
+      });
+    } else if (body.answers && typeof body.answers === 'object') {
+      Object.assign(answersMap, body.answers);
+    }
+
     let earned = 0;
     let total = 0;
 
     (found?.questions || []).forEach(q => {
       total += q.points || 1;
-      const chosenOptId = answers[q.id];
+      const chosenOptId = answersMap[q.id];
       const correctOpt = (q.options || []).find(o => o.isCorrect);
       if (correctOpt && correctOpt.id === chosenOptId) {
         earned += q.points || 1;
@@ -510,6 +520,28 @@ async function handleStandaloneFallback(endpoint, options = {}) {
       } catch (e) {}
     }
 
+    const questionsReview = (found?.questions || []).map((q, idx) => {
+      const chosenId = answersMap[q.id];
+      const correctOpt = (q.options || []).find(o => o.isCorrect);
+      const isCorrect = Boolean(correctOpt && correctOpt.id === chosenId);
+      const explanation = q.explanation || (correctOpt ? `To'g'ri javob: "${correctOpt.text}". Ushbu javob belgilangan qoida va rasmiy ta'riflarga to'liq mos keladi.` : "Standart bo'yicha to'g'ri javob.");
+      return {
+        questionId: q.id,
+        questionText: q.text || q.question || `Savol #${idx + 1}`,
+        points: q.points || 1,
+        earnedPoints: isCorrect ? (q.points || 1) : 0,
+        isCorrect: isCorrect,
+        selectedOptionId: chosenId || null,
+        correctOptionId: correctOpt?.id || null,
+        explanation: explanation,
+        options: (q.options || []).map(o => ({
+          id: o.id,
+          text: o.text,
+          isCorrect: !!o.isCorrect
+        }))
+      };
+    });
+
     const attemptResult = {
       attemptId,
       testId: found?.id || testId,
@@ -523,20 +555,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
       submittedAt: new Date().toISOString(),
       certificateId: cert?.id,
       certificateNumber: certNumber,
-      questions: (found?.questions || []).map(q => {
-        const chosenId = answers[q.id];
-        const correctOpt = (q.options || []).find(o => o.isCorrect);
-        return {
-          questionId: q.id,
-          text: q.text,
-          points: q.points || 1,
-          earnedPoints: (correctOpt && correctOpt.id === chosenId) ? (q.points || 1) : 0,
-          isCorrect: (correctOpt && correctOpt.id === chosenId),
-          selectedOptionId: chosenId,
-          correctOptionId: correctOpt?.id,
-          options: q.options
-        };
-      })
+      questions: questionsReview
     };
 
     // Save attempt to localStorage
@@ -546,30 +565,59 @@ async function handleStandaloneFallback(endpoint, options = {}) {
       localStorage.setItem('tp_local_attempts', JSON.stringify(attempts));
     } catch (e) {}
 
+    recordAuditLog('TEST_SUBMIT', 'Test', found?.title || testId, `${state.user?.fullName || 'Talaba'} «${found?.title || 'Test'}» testini topshirdi: ${percentage}% (${isPassed ? "O'tdi" : "O'tmadi"})`, state.user?.fullName || 'Talaba');
+
     return { success: true, statusCode: 200, message: "Test natijasi saqlandi", data: attemptResult };
   }
 
-  // 8. Attempt Review
-  if (endpoint.startsWith('/api/student-tests/review/')) {
-    const attemptId = endpoint.split('/')[4];
+  // 8. Attempt Review (Supports /api/profile/attempts/:id/review, /api/student-tests/:id/review, etc.)
+  if (endpoint.includes('/review')) {
+    const parts = endpoint.split('/');
+    let targetAttemptId = '';
+    const reviewIdx = parts.indexOf('review');
+    if (reviewIdx > 0 && parts[reviewIdx - 1]) {
+      targetAttemptId = parts[reviewIdx - 1];
+    } else if (reviewIdx >= 0 && parts[reviewIdx + 1]) {
+      targetAttemptId = parts[reviewIdx + 1];
+    } else {
+      targetAttemptId = parts[parts.length - 1];
+    }
+
     try {
       const attempts = JSON.parse(localStorage.getItem('tp_local_attempts') || '[]');
-      const foundAtt = attempts.find(a => a.attemptId === attemptId);
+      const foundAtt = attempts.find(a => a.attemptId === targetAttemptId || a.attemptId === `att_${targetAttemptId}`);
       if (foundAtt) return { success: true, statusCode: 200, data: foundAtt };
+      if (attempts.length > 0) return { success: true, statusCode: 200, data: attempts[0] };
     } catch (e) {}
+
+    const firstTest = data.tests[0];
     return {
       success: true,
       statusCode: 200,
       data: {
-        attemptId,
-        testTitle: "Test Sinovi",
+        attemptId: targetAttemptId || 'att_demo',
+        testId: firstTest?.id || 'test-1-easy',
+        testTitle: firstTest?.title || "Test Sinovi",
         studentName: state.user?.fullName || "Talaba",
         totalScore: 10,
         earnedScore: 9,
         percentage: 90,
         isPassed: true,
         submittedAt: new Date().toISOString(),
-        questions: []
+        questions: (firstTest?.questions || []).map((q, idx) => {
+          const correctOpt = (q.options || []).find(o => o.isCorrect) || q.options[0];
+          return {
+            questionId: q.id,
+            questionText: q.text || `Savol #${idx + 1}`,
+            points: 1,
+            earnedPoints: 1,
+            isCorrect: true,
+            selectedOptionId: correctOpt?.id,
+            correctOptionId: correctOpt?.id,
+            explanation: q.explanation || `To'g'ri javob: "${correctOpt?.text || ''}". Ushbu javob test qoidalariga to'liq mos keladi.`,
+            options: q.options
+          };
+        })
       }
     };
   }
@@ -2751,23 +2799,25 @@ const app = {
   },
 
   // ----------------------------------------------------
-  // VIEW 4: TEST RESULT & DETAILED REVIEW
+  // VIEW 4: TEST RESULT & DETAILED REVIEW (TAHLIL)
   // ----------------------------------------------------
   async renderResult(attemptId) {
     const root = document.getElementById('app-root');
     root.innerHTML = `
       <div class="max-w-4xl mx-auto p-12 text-center text-gray-400">
         <div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p class="text-sm">Natijalar hisoblanmoqda...</p>
+        <p class="text-sm">Test natijalari va savollar tahlili yuklanmoqda...</p>
       </div>
     `;
 
     const res = await api(`/api/profile/attempts/${attemptId}/review`);
     if (!res.success || !res.data) {
       root.innerHTML = `
-        <div class="max-w-lg mx-auto glass-panel p-8 rounded-2xl text-center mt-12">
-          <p class="text-rose-400 font-bold mb-2">Natijani yuklab bo'lmadi</p>
-          <a href="#/tests" class="text-xs text-blue-400 hover:underline">Katalogga qaytish</a>
+        <div class="max-w-lg mx-auto glass-panel p-8 rounded-2xl text-center mt-12 space-y-4">
+          <span class="material-symbols-outlined text-4xl text-rose-400">error</span>
+          <p class="text-rose-400 font-bold">Natijani yuklab bo'lmadi</p>
+          <p class="text-xs text-gray-400">Ushbu test topshirish natijasi topilmadi yoki hali saqlanmagan.</p>
+          <a href="#/tests" class="inline-block px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition">Testlar katalogiga qaytish</a>
         </div>
       `;
       return;
@@ -2775,6 +2825,11 @@ const app = {
 
     const review = res.data;
     const isPassed = review.isPassed;
+    const questions = review.questions || [];
+    const totalQuestions = questions.length;
+    const correctCount = questions.filter(q => q.isCorrect).length;
+    const wrongCount = questions.filter(q => !q.isCorrect && q.selectedOptionId).length;
+    const unansweredCount = questions.filter(q => !q.selectedOptionId).length;
 
     // Trigger confetti if passed
     if (isPassed && window.confetti) {
@@ -2788,128 +2843,258 @@ const app = {
     // Check certificate
     const certRes = await api(`/api/certificates/by-attempt/${attemptId}`);
     const certificate = certRes.success ? certRes.data : null;
-
     const backDest = state.user?.role === 'Admin' ? '#/admin' : '#/dashboard';
+    const testId = review.testId || state.activeQuiz?.id || 'tests';
 
     root.innerHTML = `
-      <div class="max-w-4xl mx-auto space-y-8 animate-fadeIn">
+      <div class="max-w-4xl mx-auto space-y-8 animate-fadeIn pb-16">
         
         <!-- Top Back Navigation -->
-        <div class="flex items-center justify-start">
+        <div class="flex items-center justify-between">
           <a href="${backDest}" class="px-4 py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 font-bold text-xs border border-blue-500/30 inline-flex items-center gap-1.5 transition shadow-sm" title="Dashboardga qaytish">
             <span class="material-symbols-outlined text-[18px]">arrow_back</span>
             <span>⬅️ Orqaga</span>
           </a>
+          <a href="#/test-solve/${testId}" class="px-4 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 font-bold text-xs border border-emerald-500/30 inline-flex items-center gap-1.5 transition shadow-sm" title="Testni qaytadan yechish">
+            <span class="material-symbols-outlined text-[18px]">replay</span>
+            <span>Testni Qaytadan Yechish</span>
+          </a>
         </div>
 
         <!-- Score Summary Card -->
-        <div class="glass-panel p-8 rounded-3xl text-center relative overflow-hidden border ${isPassed ? 'border-emerald-500/30' : 'border-rose-500/30'}">
-          <div class="w-20 h-20 rounded-3xl ${isPassed ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'} flex items-center justify-center mx-auto mb-4">
-            <span class="material-symbols-outlined text-4xl">${isPassed ? 'workspace_premium' : 'sentiment_dissatisfied'}</span>
+        <div class="glass-panel p-6 sm:p-8 rounded-3xl text-center relative overflow-hidden border ${isPassed ? 'border-emerald-500/30' : 'border-rose-500/30'}">
+          <div class="w-20 h-20 rounded-3xl ${isPassed ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'} flex items-center justify-center mx-auto mb-4 shadow-xl">
+            <span class="material-symbols-outlined text-4xl">${isPassed ? 'workspace_premium' : 'cancel'}</span>
           </div>
 
-          <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${isPassed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">
-            ${isPassed ? 'Testdan Muvaffaqiyatli O\'tdingiz!' : 'Afsuski, O\'ta Olmadingiz'}
+          <span class="px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${isPassed ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}">
+            ${isPassed ? '🎉 Testdan Muvaffaqiyatli O\'tdingiz!' : '❌ Afsuski, O\'ta Olmadingiz'}
           </span>
 
-          <h1 class="text-3xl font-black font-heading text-white mt-3 mb-1">${review.testTitle}</h1>
-          <p class="text-xs text-gray-400">Talaba: <strong class="text-gray-200">${review.studentName}</strong></p>
+          <h1 class="text-2xl sm:text-3xl font-black font-heading text-white mt-3 mb-1">${this.escapeHtml(review.testTitle)}</h1>
+          <p class="text-xs text-gray-400">Talaba: <strong class="text-gray-200">${this.escapeHtml(review.studentName || state.user?.fullName || 'Talaba')}</strong></p>
 
           <!-- Metrics Grid -->
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 max-w-lg mx-auto mt-6 text-center">
-            <div class="bg-white/5 p-4 rounded-2xl">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto mt-6 text-center">
+            <div class="bg-white/5 p-3.5 rounded-2xl border border-white/5">
               <span class="text-[11px] text-gray-400 block mb-1">To'plangan Ball</span>
-              <span class="text-2xl font-black text-white font-heading">${review.earnedScore} / ${review.totalScore}</span>
+              <span class="text-xl sm:text-2xl font-black text-white font-heading">${review.earnedScore} / ${review.totalScore}</span>
             </div>
 
-            <div class="bg-white/5 p-4 rounded-2xl">
+            <div class="bg-white/5 p-3.5 rounded-2xl border border-white/5">
               <span class="text-[11px] text-gray-400 block mb-1">Natija Foizi</span>
-              <span class="text-2xl font-black ${isPassed ? 'text-emerald-400' : 'text-rose-400'} font-heading">${review.percentage}%</span>
+              <span class="text-xl sm:text-2xl font-black ${isPassed ? 'text-emerald-400' : 'text-rose-400'} font-heading">${review.percentage}%</span>
             </div>
 
-            <div class="bg-white/5 p-4 rounded-2xl col-span-2 sm:col-span-1">
-              <span class="text-[11px] text-gray-400 block mb-1">Holati</span>
-              <span class="text-sm font-bold ${isPassed ? 'text-emerald-400' : 'text-rose-400'} flex items-center justify-center gap-1 mt-1">
-                <span class="material-symbols-outlined text-[18px]">${isPassed ? 'check_circle' : 'cancel'}</span>
-                ${isPassed ? 'Qoniqarli' : 'Yetarli emas'}
-              </span>
+            <div class="bg-white/5 p-3.5 rounded-2xl border border-white/5">
+              <span class="text-[11px] text-gray-400 block mb-1">To'g'ri Javoblar</span>
+              <span class="text-xl sm:text-2xl font-black text-emerald-400 font-heading">${correctCount} / ${totalQuestions}</span>
+            </div>
+
+            <div class="bg-white/5 p-3.5 rounded-2xl border border-white/5">
+              <span class="text-[11px] text-gray-400 block mb-1">Xatolar Soni</span>
+              <span class="text-xl sm:text-2xl font-black text-rose-400 font-heading">${wrongCount + unansweredCount} ta</span>
             </div>
           </div>
 
           <!-- Action Buttons -->
           <div class="flex flex-wrap items-center justify-center gap-3 mt-8">
             ${certificate ? `
-              <a href="#/certificate/${certificate.certificateNumber}" class="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs glow-button-primary transition flex items-center gap-2">
+              <a href="#/certificate/${certificate.certificateNumber}" class="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs glow-button-primary transition flex items-center gap-2 shadow-lg shadow-amber-500/20">
                 <span class="material-symbols-outlined text-[18px]">workspace_premium</span> Sertifikatni Ko'rish
               </a>
             ` : ''}
 
-            <button onclick="app.sendQuickAiPrompt('🎯 Test natijalarim (${review.percentage}%) bo\\'yicha qaysi mavzularni ko\\'proq takrorlashim kerak?')" class="px-5 py-3 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-semibold transition flex items-center gap-1.5 shadow-md">
-              <span class="material-symbols-outlined text-[16px] text-purple-400">psychology</span> Nova AI bilan tahlil
-            </button>
-
-            <a href="#/tests" class="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 text-xs font-semibold transition flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-[16px]">refresh</span> Boshqa test topshirish
+            <a href="#/test-solve/${testId}" class="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs glow-button-primary transition flex items-center gap-1.5 shadow-lg shadow-blue-500/20">
+              <span class="material-symbols-outlined text-[18px]">replay</span> Xatolar ustida ishlash (Qaytadan yechish)
             </a>
 
-            <a href="#/leaderboard" class="px-5 py-3 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-semibold transition flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-[16px]">military_tech</span> Reytingni ko'rish
+            <a href="#/tests" class="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 text-xs font-semibold transition flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">grid_view</span> Boshqa testlar
+            </a>
+
+            <a href="#/leaderboard" class="px-5 py-3 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-semibold transition flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">military_tech</span> Reyting
             </a>
           </div>
         </div>
 
-        <!-- Detailed Question-by-Question Review -->
+        <!-- Detailed Question-by-Question Review Header & Filter Controls -->
         <div class="glass-panel p-6 sm:p-8 rounded-3xl space-y-6">
-          <div class="flex items-center justify-between pb-4 border-b border-white/10">
-            <h3 class="text-xl font-bold font-heading text-white">Savollar Tahlili</h3>
-            <span class="text-xs text-gray-400">Jami ${review.questions.length} ta savol</span>
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-white/10">
+            <div>
+              <h3 class="text-xl font-black font-heading text-white flex items-center gap-2">
+                <span class="material-symbols-outlined text-blue-400 text-2xl">analytics</span>
+                <span>Savollar va Xatolar Tahlili</span>
+              </h3>
+              <p class="text-xs text-gray-400 mt-1">Har bir savolning to'g'ri javobi va xatolik sababi bilan batafsil tanishing</p>
+            </div>
+
+            <!-- Filter Buttons: All, Correct, Mistakes -->
+            <div class="flex items-center gap-2 bg-white/5 p-1 rounded-2xl border border-white/10 shrink-0">
+              <button onclick="app.filterReviewQuestions('all')" id="review-filter-all" class="review-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-blue-600 text-white shadow-md">
+                Barchasi (${totalQuestions})
+              </button>
+              <button onclick="app.filterReviewQuestions('correct')" id="review-filter-correct" class="review-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-white/5 text-emerald-400 hover:text-white flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span> To'g'ri (${correctCount})
+              </button>
+              <button onclick="app.filterReviewQuestions('wrong')" id="review-filter-wrong" class="review-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-white/5 text-rose-400 hover:text-white flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-rose-400"></span> Xatolar (${wrongCount + unansweredCount})
+              </button>
+            </div>
           </div>
 
-          <div class="space-y-6">
-            ${review.questions.map((q, idx) => {
+          <!-- Questions List -->
+          <div class="space-y-6" id="review-questions-container">
+            ${questions.map((q, idx) => {
+              const isCorrect = !!q.isCorrect;
+              const hasAnswered = !!q.selectedOptionId;
+              const statusType = isCorrect ? 'correct' : 'wrong';
+              const correctOpt = (q.options || []).find(o => o.id === q.correctOptionId || o.isCorrect);
+
+              let badgeHtml = '';
+              let cardBorder = '';
+              let cardBg = '';
+
+              if (isCorrect) {
+                cardBorder = 'border-emerald-500/30';
+                cardBg = 'bg-emerald-500/5';
+                badgeHtml = `
+                  <span class="px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[15px]">check_circle</span>
+                    <span>To'g'ri javob berildi (+${q.points || 1} ball)</span>
+                  </span>
+                `;
+              } else if (hasAnswered) {
+                cardBorder = 'border-rose-500/40';
+                cardBg = 'bg-rose-500/5';
+                badgeHtml = `
+                  <span class="px-3 py-1 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[15px]">cancel</span>
+                    <span>Xato javob berildi (0 ball)</span>
+                  </span>
+                `;
+              } else {
+                cardBorder = 'border-amber-500/40';
+                cardBg = 'bg-amber-500/5';
+                badgeHtml = `
+                  <span class="px-3 py-1 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[15px]">hourglass_empty</span>
+                    <span>Javob belgilanmagan (0 ball)</span>
+                  </span>
+                `;
+              }
+
+              const explanation = q.explanation || (correctOpt ? `Ushbu savolning to'g'ri javobi: "${correctOpt.text}". Bu javob fanning rasmiy qoidalari va standart darslik dasturiga to'liq mos keladi.` : "Standart talablariga ko'ra belgilangan to'g'ri javob.");
+
               return `
-                <div class="p-5 rounded-2xl border ${q.isCorrect ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-rose-500/30 bg-rose-500/5'} space-y-3">
-                  <div class="flex items-start justify-between gap-4">
-                    <span class="text-xs font-bold ${q.isCorrect ? 'text-emerald-400' : 'text-rose-400'} uppercase">
-                      Savol ${idx + 1} • ${q.isCorrect ? 'To\'g\'ri javob berildi' : 'Xato javob berildi'}
-                    </span>
+                <div class="review-question-card p-5 sm:p-6 rounded-3xl border ${cardBorder} ${cardBg} space-y-4 transition" data-status="${statusType}">
+                  <!-- Card Header -->
+                  <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/10">
                     <div class="flex items-center gap-2">
-                      <button onclick="app.askAiForHint('${q.questionText.replace(/'/g, "\\'")}', '${review.testTitle.replace(/'/g, "\\'")}')" class="px-2.5 py-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 text-[10px] font-bold border border-purple-500/30 transition flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[13px]">lightbulb</span> AI Tushuntirish
-                      </button>
-                      <span class="px-2 py-0.5 rounded bg-white/5 text-[11px] text-gray-400">${q.points} ball</span>
+                      <span class="w-8 h-8 rounded-xl bg-white/10 text-white font-bold text-xs flex items-center justify-center font-mono">
+                        ${idx + 1}
+                      </span>
+                      <span class="text-xs font-bold text-gray-300">Savol #${idx + 1}</span>
                     </div>
+                    ${badgeHtml}
                   </div>
 
-                  <p class="text-sm font-medium text-white">${q.questionText}</p>
+                  <!-- Question Text -->
+                  <div class="text-base sm:text-lg font-bold text-white leading-relaxed">
+                    ${this.escapeHtml(q.questionText || q.text || `Savol #${idx + 1}`)}
+                  </div>
 
-                  <div class="space-y-2 pt-1">
-                    ${q.options.map(opt => {
+                  <!-- Options List -->
+                  <div class="space-y-2.5 pt-1">
+                    ${(q.options || []).map((opt, oIdx) => {
+                      const letter = ['A', 'B', 'C', 'D', 'E'][oIdx] || '';
                       const isUserSelected = opt.id === q.selectedOptionId;
-                      const isCorrectAnswer = opt.id === q.correctOptionId || opt.isCorrect;
+                      const isCorrectOption = opt.id === q.correctOptionId || opt.isCorrect;
 
-                      let optClass = 'border-white/5 bg-white/5 text-gray-300';
-                      if (isCorrectAnswer) {
-                        optClass = 'border-emerald-500 bg-emerald-500/20 text-emerald-300 font-semibold';
-                      } else if (isUserSelected && !q.isCorrect) {
-                        optClass = 'border-rose-500 bg-rose-500/20 text-rose-300';
+                      let optContainerClass = 'border-white/10 bg-white/5 text-gray-300';
+                      let badgeRight = '';
+
+                      if (isCorrectOption) {
+                        optContainerClass = 'border-2 border-emerald-500/80 bg-emerald-500/20 text-emerald-200 font-bold shadow-lg shadow-emerald-500/10';
+                        badgeRight = `
+                          <span class="px-2.5 py-1 rounded-lg bg-emerald-500 text-black font-black text-[11px] flex items-center gap-1 shrink-0">
+                            <span class="material-symbols-outlined text-[14px]">check</span> To'g'ri javob
+                          </span>
+                        `;
+                      } else if (isUserSelected && !isCorrect) {
+                        optContainerClass = 'border-2 border-rose-500/80 bg-rose-500/20 text-rose-200 font-bold shadow-lg shadow-rose-500/10';
+                        badgeRight = `
+                          <span class="px-2.5 py-1 rounded-lg bg-rose-500 text-white font-bold text-[11px] flex items-center gap-1 shrink-0">
+                            <span class="material-symbols-outlined text-[14px]">close</span> Sizning javobingiz
+                          </span>
+                        `;
                       }
 
                       return `
-                        <div class="p-3 rounded-xl border text-xs flex items-center justify-between ${optClass}">
-                          <span>${opt.text}</span>
-                          <span class="text-[11px]">
-                            ${isCorrectAnswer ? '✅ To\'g\'ri javob' : isUserSelected ? '❌ Siz tanlagan variant' : ''}
-                          </span>
+                        <div class="p-3.5 rounded-2xl border text-xs sm:text-sm flex items-center justify-between gap-3 transition ${optContainerClass}">
+                          <div class="flex items-center gap-3 min-w-0">
+                            <span class="w-7 h-7 rounded-xl ${isCorrectOption ? 'bg-emerald-500 text-black font-black' : isUserSelected ? 'bg-rose-500 text-white font-bold' : 'bg-white/10 text-gray-400'} flex items-center justify-center text-xs font-bold shrink-0">
+                              ${letter}
+                            </span>
+                            <span class="leading-snug">${this.escapeHtml(opt.text)}</span>
+                          </div>
+                          ${badgeRight}
                         </div>
                       `;
                     }).join('')}
+                  </div>
+
+                  <!-- Mistake Explanation & Reason Box -->
+                  <div class="p-4 rounded-2xl ${isCorrect ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-amber-500/10 border border-amber-500/20'} space-y-2 mt-3">
+                    <div class="flex items-center gap-2 ${isCorrect ? 'text-emerald-400' : 'text-amber-400'} font-bold text-xs">
+                      <span class="material-symbols-outlined text-[18px]">lightbulb</span>
+                      <span>${isCorrect ? "To'g'ri javob izohi:" : "💡 Xatoning sababi va to'g'ri javob tushuntirishi:"}</span>
+                    </div>
+                    <p class="text-xs text-gray-200 leading-relaxed font-sans">
+                      ${this.escapeHtml(explanation)}
+                    </p>
+                  </div>
+
+                  <!-- Question Issue Report Link -->
+                  <div class="pt-2 flex items-center justify-between text-[11px] text-gray-400">
+                    <span class="text-gray-500">Ball: ${q.points || 1} ball</span>
+                    <button type="button" onclick="app.openSupportModal('Savoldagi xatolik', '«${this.escapeJs(review.testTitle)}» - Savol #${idx + 1}', 'Savol: ${this.escapeJs(q.questionText || q.text || '')}\\n\\nXatolik haqida:')" class="text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1 transition">
+                      <span class="material-symbols-outlined text-[14px]">flag</span> Savolda xatolik bormi? Adminga xabar bering
+                    </button>
                   </div>
                 </div>
               `;
             }).join('')}
           </div>
         </div>
+
+      </div>
+    `;
+  },
+
+  filterReviewQuestions(filterType) {
+    document.querySelectorAll('.review-filter-btn').forEach(btn => {
+      btn.classList.remove('bg-blue-600', 'text-white', 'shadow-md');
+      btn.classList.add('bg-white/5', 'text-gray-400', 'hover:text-white');
+    });
+
+    const activeBtn = document.getElementById(`review-filter-${filterType}`);
+    if (activeBtn) {
+      activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-md');
+      activeBtn.classList.remove('bg-white/5', 'text-gray-400');
+    }
+
+    const items = document.querySelectorAll('.review-question-card');
+    items.forEach(item => {
+      const status = item.getAttribute('data-status');
+      if (filterType === 'all' || status === filterType) {
+        item.style.display = 'block';
+      } else {
+        item.style.display = 'none';
+      }
+    });
+  },
 
       </div>
     `;
@@ -3745,13 +3930,16 @@ const app = {
                 <p class="text-xs text-gray-400">Natija: <strong class="text-white">${item.percentage}%</strong> (${item.earnedScore || 0} ball)</p>
               </div>
 
-              <div class="flex items-center gap-2">
-                <a href="#/result/${item.attemptId}" class="px-3 py-1.5 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 text-xs font-semibold transition">
-                  Natijani Ko'rish
+              <div class="flex items-center gap-2 flex-wrap">
+                <a href="#/result/${item.attemptId}" class="px-3.5 py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-bold transition flex items-center gap-1.5 shadow-sm" title="Test savollari va xatolar tahlilini ko'rish">
+                  <span class="material-symbols-outlined text-[15px]">analytics</span> Savollar Tahlili
+                </a>
+                <a href="#/test-solve/${item.testId || 'tests'}" class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 text-xs font-semibold transition flex items-center gap-1" title="Qaytadan topshirish">
+                  <span class="material-symbols-outlined text-[15px]">replay</span> Qayta topshirish
                 </a>
                 ${item.certificateNumber ? `
-                  <a href="#/certificate/${item.certificateNumber}" class="px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-xs font-semibold transition flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[14px]">workspace_premium</span> Sertifikat
+                  <a href="#/certificate/${item.certificateNumber}" class="px-3 py-2 rounded-xl bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30 text-xs font-bold transition flex items-center gap-1 shadow-sm">
+                    <span class="material-symbols-outlined text-[15px]">workspace_premium</span> Sertifikat
                   </a>
                 ` : ''}
               </div>

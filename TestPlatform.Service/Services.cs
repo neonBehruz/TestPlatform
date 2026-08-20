@@ -1160,6 +1160,7 @@ namespace TestPlatform.Service
             var review = new AttemptReviewDto
             {
                 AttemptId = attempt.Id,
+                TestId = test.Id,
                 TestTitle = test.Title,
                 StudentName = attempt.StudentName,
                 EarnedScore = attempt.EarnedScore,
@@ -1173,6 +1174,9 @@ namespace TestPlatform.Service
             {
                 var userAns = attempt.Answers.FirstOrDefault(a => a.QuestionId == q.Id);
                 var correctOpt = q.Options.FirstOrDefault(o => o.IsCorrect);
+                var explanationText = !string.IsNullOrWhiteSpace(q.Explanation) 
+                    ? q.Explanation 
+                    : (correctOpt != null ? $"To'g'ri javob: \"{correctOpt.Text}\". Ushbu javob mavzu qoidalari va standart ta'riflarga to'liq mos keladi." : "Standart bo'yicha to'g'ri javob.");
 
                 review.Questions.Add(new QuestionReviewDto
                 {
@@ -1180,13 +1184,14 @@ namespace TestPlatform.Service
                     QuestionText = q.Text,
                     Points = q.Points,
                     SelectedOptionId = userAns?.SelectedOptionId ?? Guid.Empty,
-                    CorrectOptionId = test.ShowCorrectAnswers && correctOpt != null ? correctOpt.Id : Guid.Empty,
+                    CorrectOptionId = correctOpt != null ? correctOpt.Id : Guid.Empty,
                     IsCorrect = userAns != null && userAns.IsCorrect,
+                    Explanation = explanationText,
                     Options = q.Options.Select(o => new OptionDto
                     {
                         Id = o.Id,
                         Text = o.Text,
-                        IsCorrect = test.ShowCorrectAnswers ? o.IsCorrect : false
+                        IsCorrect = o.IsCorrect
                     }).ToList()
                 });
             }

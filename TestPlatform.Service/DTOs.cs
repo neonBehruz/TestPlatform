@@ -268,6 +268,7 @@ namespace TestPlatform.Service.DTOs
     public class AttemptReviewDto
     {
         public Guid AttemptId { get; set; }
+        public Guid TestId { get; set; }
         public string TestTitle { get; set; } = string.Empty;
         public string StudentName { get; set; } = string.Empty;
         public int EarnedScore { get; set; }
@@ -286,6 +287,7 @@ namespace TestPlatform.Service.DTOs
         public Guid SelectedOptionId { get; set; }
         public Guid CorrectOptionId { get; set; }
         public bool IsCorrect { get; set; }
+        public string Explanation { get; set; } = string.Empty;
         public List<OptionDto> Options { get; set; } = new List<OptionDto>();
     }
 
