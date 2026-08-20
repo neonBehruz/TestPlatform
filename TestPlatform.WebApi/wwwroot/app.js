@@ -371,6 +371,81 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     };
   }
 
+  // 3.0.1. Forgot Password - Send reset code
+  if (endpoint === '/api/auth/forgot-password') {
+    const targetEmail = (body.email || '').trim().toLowerCase();
+    if (!targetEmail || !targetEmail.includes('@')) {
+      return { success: false, statusCode: 400, message: "Iltimos, to'g'ri email manzil kiriting!" };
+    }
+
+    // Check user exists in localStorage
+    let users = [];
+    try { users = JSON.parse(localStorage.getItem('tp_local_users') || '[]'); } catch (e) {}
+    const isAdmin = targetEmail === 'behruzsagdullayev0707@gmail.com' || targetEmail === 'admin' || targetEmail === 'behruz';
+    const userExists = isAdmin || users.some(u => (u.email || '').toLowerCase() === targetEmail);
+
+    if (!userExists) {
+      return { success: false, statusCode: 404, message: "Bu email bilan ro'yxatdan o'tgan foydalanuvchi topilmadi!" };
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    try {
+      sessionStorage.setItem('tp_reset_code_' + targetEmail, code);
+      sessionStorage.setItem('tp_reset_email', targetEmail);
+    } catch (e) {}
+
+    // (Real email sending happens via backend; in standalone mode the code is returned in data.code)
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: `Parolni tiklash kodi ${targetEmail} manziliga yuborildi!`,
+      data: { code, email: targetEmail }
+    };
+  }
+
+  // 3.0.2. Reset Password - Verify code + set new password
+  if (endpoint === '/api/auth/reset-password') {
+    const targetEmail = (body.email || '').trim().toLowerCase();
+    const code = (body.code || '').trim();
+    const newPassword = body.newPassword || '';
+
+    if (!targetEmail || !code || !newPassword) {
+      return { success: false, statusCode: 400, message: "Barcha maydonlarni to'ldiring!" };
+    }
+    if (newPassword.length < 4) {
+      return { success: false, statusCode: 400, message: "Yangi parol kamida 4 ta belgidan iborat bo'lishi kerak!" };
+    }
+
+    // Verify OTP code (check both reset-specific and general email code stores)
+    let storedCode = null;
+    try {
+      storedCode = sessionStorage.getItem('tp_reset_code_' + targetEmail) ||
+                   sessionStorage.getItem('tp_pending_email_code_' + targetEmail);
+    } catch (e) {}
+
+    if (!storedCode || code !== storedCode) {
+      return { success: false, statusCode: 400, message: "Tasdiqlash kodi noto'g'ri yoki muddati tugagan!" };
+    }
+
+    // Reset password
+    const isAdmin = targetEmail === 'behruzsagdullayev0707@gmail.com';
+    if (isAdmin) {
+      localStorage.setItem('tp_admin_custom_pass', newPassword);
+    } else {
+      localStorage.setItem('tp_user_pass_' + targetEmail, newPassword);
+    }
+
+    // Clear OTP codes
+    try {
+      sessionStorage.removeItem('tp_reset_code_' + targetEmail);
+      sessionStorage.removeItem('tp_pending_email_code_' + targetEmail);
+      sessionStorage.removeItem('tp_reset_email');
+    } catch (e) {}
+
+    return { success: true, statusCode: 200, message: "Parol muvaffaqiyatli yangilandi! Yangi parol bilan kiring." };
+  }
+
   // 3.1. Profile Update
   if (endpoint.startsWith('/api/auth/profile/')) {
     const currentEmail = (state.user?.email || '').toLowerCase();
@@ -709,12 +784,76 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     }
   }
 
-  // 10.1 Users List
+  // 10.1 Users Management (List, Delete)
   if (endpoint === '/api/users' || endpoint.startsWith('/api/users')) {
     let users = [];
     try {
       users = JSON.parse(localStorage.getItem('tp_local_users') || '[]');
     } catch (e) {}
+
+    // Handle DELETE user
+    if (method === 'DELETE') {
+      const parts = endpoint.split('/');
+      const targetId = decodeURIComponent(parts[parts.length - 1] || body.id || '').trim();
+
+      const userToDelete = users.find(u => 
+        (u.id && String(u.id).toLowerCase() === targetId.toLowerCase()) ||
+        (u.email && u.email.toLowerCase() === targetId.toLowerCase())
+      );
+
+      users = users.filter(u => 
+        String(u.id || '').toLowerCase() !== targetId.toLowerCase() &&
+        (u.email || '').toLowerCase() !== targetId.toLowerCase()
+      );
+
+      try {
+        localStorage.setItem('tp_local_users', JSON.stringify(users));
+
+        // Save to deleted user ids blacklist so it never reappears
+        const deletedIds = JSON.parse(localStorage.getItem('tp_deleted_user_ids') || '[]');
+        if (targetId && !deletedIds.includes(targetId.toLowerCase())) {
+          deletedIds.push(targetId.toLowerCase());
+        }
+        if (userToDelete?.email && !deletedIds.includes(userToDelete.email.toLowerCase())) {
+          deletedIds.push(userToDelete.email.toLowerCase());
+        }
+        localStorage.setItem('tp_deleted_user_ids', JSON.stringify(deletedIds));
+
+        if (userToDelete && userToDelete.email) {
+          localStorage.removeItem('tp_user_pass_' + userToDelete.email.toLowerCase());
+          sessionStorage.removeItem('tp_pending_email_code_' + userToDelete.email.toLowerCase());
+        }
+
+        // Clean attempts & certs for this user
+        let attempts = JSON.parse(localStorage.getItem('tp_local_attempts') || '[]');
+        attempts = attempts.filter(a => String(a.studentId) !== targetId && (a.studentEmail || '').toLowerCase() !== (userToDelete?.email || '').toLowerCase());
+        localStorage.setItem('tp_local_attempts', JSON.stringify(attempts));
+
+        let certs = JSON.parse(localStorage.getItem('tp_local_certs') || '[]');
+        certs = certs.filter(c => String(c.studentId) !== targetId && (c.studentEmail || '').toLowerCase() !== (userToDelete?.email || '').toLowerCase());
+        localStorage.setItem('tp_local_certs', JSON.stringify(certs));
+
+        // Audit log
+        const auditLogs = JSON.parse(localStorage.getItem('tp_audit_logs') || '[]');
+        auditLogs.unshift({
+          id: 'log_' + Date.now(),
+          userName: state.user?.fullName || 'Admin',
+          action: 'DELETE_USER',
+          entityName: 'User',
+          entityId: targetId,
+          details: `Foydalanuvchi tizimdan o'chirildi: ${userToDelete?.fullName || 'Talaba'} (${userToDelete?.email || targetId})`,
+          createdAt: new Date().toISOString()
+        });
+        localStorage.setItem('tp_audit_logs', JSON.stringify(auditLogs));
+      } catch (e) {}
+
+      return {
+        success: true,
+        statusCode: 200,
+        message: "Foydalanuvchi muvaffaqiyatli o'chirildi!",
+        data: { id: targetId }
+      };
+    }
 
     const adminUser = {
       id: '95EBB8D9-F98D-4075-8DEB-F9FED3C2D212',
@@ -726,16 +865,70 @@ async function handleStandaloneFallback(endpoint, options = {}) {
       premiumPlan: 'VIP'
     };
 
+    let deletedIds = [];
+    try {
+      deletedIds = JSON.parse(localStorage.getItem('tp_deleted_user_ids') || '[]');
+    } catch (e) {}
+
     const studentList = users
-      .filter(u => (u.email || '').toLowerCase() !== 'behruzsagdullayev0707@gmail.com')
+      .filter(u => {
+        const uEmail = (u.email || '').toLowerCase();
+        const uId = String(u.id || '').toLowerCase();
+        if (uEmail === 'behruzsagdullayev0707@gmail.com') return false;
+        if (deletedIds.includes(uId) || deletedIds.includes(uEmail)) return false;
+        return true;
+      })
       .map(u => ({
         ...u,
         role: 'Student',
-        isPremium: u.hasPaidSubscription ? !!u.isPremium : false,
-        premiumPlan: u.hasPaidSubscription ? (u.premiumPlan || null) : null
+        isPremium: u.isPremium || u.hasPaidSubscription || false,
+        premiumPlan: u.premiumPlan || (u.isPremium ? 'PRO' : null)
       }));
 
     return { success: true, statusCode: 200, data: [adminUser, ...studentList] };
+  }
+
+  // 10.2 Admin Grant Subscription
+  if (endpoint === '/api/subscription/admin/grant' || endpoint.startsWith('/api/subscription/admin/grant')) {
+    const targetUserId = body.targetUserId || '';
+    const planName = body.planName || 'PRO';
+    const durationDays = parseInt(body.durationDays) || 30;
+
+    let users = [];
+    try {
+      users = JSON.parse(localStorage.getItem('tp_local_users') || '[]');
+    } catch (e) {}
+
+    const uIdx = users.findIndex(u => String(u.id) === String(targetUserId) || (u.email && u.email.toLowerCase() === String(targetUserId).toLowerCase()));
+    if (uIdx >= 0) {
+      users[uIdx].isPremium = true;
+      users[uIdx].hasPaidSubscription = true;
+      users[uIdx].premiumPlan = planName;
+      users[uIdx].planExpiry = new Date(Date.now() + durationDays * 24 * 3600 * 1000).toISOString();
+      localStorage.setItem('tp_local_users', JSON.stringify(users));
+    }
+
+    if (state.user && (String(state.user.id) === String(targetUserId) || (state.user.email || '').toLowerCase() === String(targetUserId).toLowerCase())) {
+      state.user.isPremium = true;
+      state.user.premiumPlan = planName;
+      saveSession(state.token, state.user);
+    }
+
+    try {
+      const logs = JSON.parse(localStorage.getItem('tp_audit_logs') || '[]');
+      logs.unshift({
+        id: 'log_' + Date.now(),
+        userName: state.user?.fullName || 'Admin',
+        action: 'GRANT_PRO',
+        entityName: 'Subscription',
+        entityId: targetUserId,
+        details: `Talabaga «${planName}» (${durationDays} kun) tarifi biriktirildi`,
+        createdAt: new Date().toISOString()
+      });
+      localStorage.setItem('tp_audit_logs', JSON.stringify(logs));
+    } catch (e) {}
+
+    return { success: true, statusCode: 200, message: `Foydalanuvchiga ${planName} tarifi muvaffaqiyatli berildi!` };
   }
 
   // 11. Dashboard Summary
@@ -1433,6 +1626,10 @@ const app = {
       this.renderLogin();
     } else if (hash === '#/register') {
       this.renderRegister();
+    } else if (hash === '#/forgot-password') {
+      this.renderForgotPassword();
+    } else if (hash.startsWith('#/reset-password')) {
+      this.renderResetPassword(hash);
     } else if (hash === '#/tests') {
       if (!state.user) {
         showToast('Iltimos, avval tizimga kiring', 'info');
@@ -1510,7 +1707,7 @@ const app = {
     const mainNav = document.getElementById('main-nav');
     
     // Hide navigation menu completely if user is not logged in or on auth pages
-    if (!state.user || hash === '#/login' || hash === '#/register') {
+    if (!state.user || hash === '#/login' || hash === '#/register' || hash === '#/forgot-password' || hash.startsWith('#/reset-password')) {
       if (mainNav) {
         mainNav.classList.add('hidden');
         mainNav.classList.remove('flex');
@@ -1736,6 +1933,10 @@ const app = {
             <div>
               <div class="flex items-center justify-between mb-1.5">
                 <label class="block text-xs font-semibold text-gray-300">Maxfiy Parol</label>
+                <a href="#/forgot-password" class="text-[11px] text-blue-400 hover:text-blue-300 font-semibold transition flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[13px]">lock_reset</span>
+                  Parolni unutdingizmi?
+                </a>
               </div>
               <div class="relative">
                 <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">lock</span>
@@ -1751,7 +1952,7 @@ const app = {
             </button>
           </form>
 
-          <div class="pt-4 border-t border-white/10 text-center">
+          <div class="pt-4 border-t border-white/10 text-center space-y-2">
             <p class="text-xs text-gray-400">
               Hisobingiz mavjud emasmi? 
               <a href="#/register" class="text-blue-400 font-bold hover:text-blue-300 transition">Ro'yxatdan o'tish</a>
@@ -1868,6 +2069,223 @@ const app = {
         </div>
       </div>
     `;
+  },
+
+  // ----------------------------------------------------
+  // FORGOT PASSWORD — Step 1: Enter email, get code
+  // ----------------------------------------------------
+  renderForgotPassword() {
+    const root = document.getElementById('app-root');
+    root.innerHTML = `
+      <div class="max-w-md mx-auto my-8 sm:my-12 relative animate-entrance">
+        <div class="glow-orb w-64 h-64 bg-indigo-600/20 top-[-20px] right-[-20px]"></div>
+        <div class="glow-orb w-56 h-56 bg-blue-600/15 bottom-[-20px] left-[-20px]" style="animation-delay:-3s;"></div>
+
+        <div class="shader-card p-6 sm:p-8 space-y-6 relative z-10">
+          <!-- Header -->
+          <div class="text-center space-y-3">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-600 text-white flex items-center justify-center mx-auto shadow-xl shadow-blue-500/30 ring-1 ring-white/20 transform hover:scale-105 transition-transform duration-300">
+              <span class="material-symbols-outlined text-3xl">lock_reset</span>
+            </div>
+            <div>
+              <h2 class="text-2xl font-black font-heading text-white tracking-tight">Parolni Tiklash</h2>
+              <p class="text-xs text-gray-400 mt-1">Gmail manzilingizni kiriting — 6 xonali kod yuboramiz</p>
+            </div>
+          </div>
+
+          <!-- Step 1: Email input -->
+          <div id="forgot-step-email" class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1.5">Gmail Manzil</label>
+              <div class="relative">
+                <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">mail</span>
+                <input type="email" id="forgot-email-input" required placeholder="example@gmail.com"
+                  class="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none" />
+              </div>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs flex items-center gap-2.5">
+              <span class="material-symbols-outlined text-lg shrink-0">info</span>
+              <span>Emailingizga 6 xonali maxsus kod yuboriladi. Kodni kiritib parolingizni yangilaysiz.</span>
+            </div>
+
+            <button id="btn-forgot-send" onclick="app.handleForgotSend()"
+              class="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs glow-button-primary transition shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">send</span>
+              Kod Yuborish
+            </button>
+          </div>
+
+          <!-- Step 2: OTP + New password (initially hidden) -->
+          <div id="forgot-step-reset" class="space-y-4 hidden">
+            <!-- email display -->
+            <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
+              <span class="material-symbols-outlined text-[16px] shrink-0">mark_email_read</span>
+              <span id="forgot-email-display">email@gmail.com</span>&nbsp;manziliga kod yuborildi!
+            </div>
+
+            <!-- OTP -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1.5">Tasdiqlash Kodi (6 xona)</label>
+              <input type="text" id="forgot-otp-input" maxlength="6" inputmode="numeric"
+                placeholder="• • • • • •"
+                class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white font-mono tracking-widest text-center text-lg font-bold focus:outline-none focus:border-blue-400 placeholder-gray-600 transition" />
+            </div>
+
+            <!-- New password -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1.5">Yangi Parol</label>
+              <div class="relative">
+                <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">lock</span>
+                <input type="password" id="forgot-new-pass" minlength="4" placeholder="Kamida 4 ta belgi"
+                  class="auth-input w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none" />
+                <button type="button" onclick="app.togglePassword('forgot-new-pass','fp-eye1')" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200 transition">
+                  <span id="fp-eye1" class="material-symbols-outlined text-[18px]">visibility</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Confirm password -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1.5">Parolni Tasdiqlash</label>
+              <div class="relative">
+                <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">lock_open</span>
+                <input type="password" id="forgot-confirm-pass" minlength="4" placeholder="Parolni qayta tering"
+                  class="auth-input w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none" />
+                <button type="button" onclick="app.togglePassword('forgot-confirm-pass','fp-eye2')" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200 transition">
+                  <span id="fp-eye2" class="material-symbols-outlined text-[18px]">visibility</span>
+                </button>
+              </div>
+            </div>
+
+            <button id="btn-forgot-reset" onclick="app.handleForgotReset()"
+              class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-bold text-xs transition shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">check_circle</span>
+              Parolni Yangilash
+            </button>
+
+            <button onclick="app.handleForgotResend()" id="btn-forgot-resend"
+              class="w-full py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 text-xs font-semibold transition flex items-center justify-center gap-1.5">
+              <span class="material-symbols-outlined text-[14px]">refresh</span>
+              Yangi Kod Yuborish
+            </button>
+          </div>
+
+          <div class="pt-4 border-t border-white/10 text-center">
+            <a href="#/login" class="text-xs text-blue-400 hover:text-blue-300 font-semibold transition flex items-center justify-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">arrow_back</span>
+              Kirish sahifasiga qaytish
+            </a>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  async handleForgotSend() {
+    const email = (document.getElementById('forgot-email-input')?.value || '').trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      showToast('Iltimos, to\'g\'ri Gmail manzil kiriting!', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-forgot-send');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">refresh</span> Yuborilmoqda...';
+    }
+
+    const res = await api('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">send</span> Kod Yuborish';
+    }
+
+    if (res && res.success) {
+      // Store email for next step
+      try { sessionStorage.setItem('tp_reset_email', email); } catch (e) {}
+
+      // Switch to step 2
+      const stepEmail = document.getElementById('forgot-step-email');
+      const stepReset = document.getElementById('forgot-step-reset');
+      const emailDisplay = document.getElementById('forgot-email-display');
+      if (stepEmail) stepEmail.classList.add('hidden');
+      if (stepReset) stepReset.classList.remove('hidden');
+      if (emailDisplay) emailDisplay.textContent = email;
+
+      showToast(`✉️ Kod ${email} ga yuborildi! Emailingizni tekshiring.`, 'success');
+      document.getElementById('forgot-otp-input')?.focus();
+    } else {
+      showToast(res?.message || 'Xatolik yuz berdi, qayta urinib ko\'ring', 'error');
+    }
+  },
+
+  async handleForgotReset() {
+    const email = (sessionStorage.getItem('tp_reset_email') || document.getElementById('forgot-email-input')?.value || '').trim().toLowerCase();
+    const code = (document.getElementById('forgot-otp-input')?.value || '').trim();
+    const newPass = document.getElementById('forgot-new-pass')?.value || '';
+    const confirmPass = document.getElementById('forgot-confirm-pass')?.value || '';
+
+    if (!email) { showToast('Email manzil topilmadi. Sahifani yangilang.', 'error'); return; }
+    if (!code || code.length < 6) { showToast('6 xonali tasdiqlash kodini kiriting!', 'error'); return; }
+    if (!newPass || newPass.length < 4) { showToast('Yangi parol kamida 4 ta belgidan iborat bo\'lishi kerak!', 'error'); return; }
+    if (newPass !== confirmPass) { showToast('Parollar bir-biriga mos kelmadi!', 'error'); return; }
+
+    const btn = document.getElementById('btn-forgot-reset');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="material-symbols-outlined text-[15px] animate-spin">refresh</span> Saqlanmoqda...';
+    }
+
+    const res = await api('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, code, newPassword: newPass })
+    });
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">check_circle</span> Parolni Yangilash';
+    }
+
+    if (res && res.success) {
+      showToast('🎉 Parol muvaffaqiyatli yangilandi! Yangi parol bilan kirish mumkin.', 'success');
+      setTimeout(() => { window.location.hash = '#/login'; }, 1800);
+    } else {
+      showToast(res?.message || 'Xatolik yuz berdi, qayta urinib ko\'ring', 'error');
+    }
+  },
+
+  async handleForgotResend() {
+    const email = (sessionStorage.getItem('tp_reset_email') || '').trim().toLowerCase();
+    if (!email) { showToast('Email topilmadi. Sahifani yangilang.', 'error'); return; }
+
+    const btn = document.getElementById('btn-forgot-resend');
+    if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Yuborilmoqda...'; }
+
+    const res = await api('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">refresh</span> Yangi Kod Yuborish';
+    }
+
+    if (res && res.success) {
+      showToast('Yangi tasdiqlash kodi emailingizga yuborildi!', 'success');
+    } else {
+      showToast(res?.message || 'Xatolik yuz berdi', 'error');
+    }
+  },
+
+  // renderResetPassword just routes back to the unified forgot-password page
+  renderResetPassword(hash) {
+    this.renderForgotPassword();
   },
 
   async sendVerificationCode() {
@@ -2096,6 +2514,157 @@ const app = {
     document.documentElement.classList.remove('modal-open', 'overflow-hidden');
     document.body.style.overflow = '';
     document.documentElement.style.overflow = '';
+  },
+
+  // IN-APP CUSTOM CONFIRMATION MODAL (Replaces browser confirm() dialogs)
+  confirmModal({
+    title = 'Tasdiqlash',
+    message = 'Haqiqatdan ham ushbu amalni bajarmoqchimisiz?',
+    confirmText = 'Tasdiqlash',
+    cancelText = 'Bekor qilish',
+    icon = 'warning',
+    type = 'danger', // 'danger' | 'warning' | 'info' | 'primary'
+    onConfirm = async () => {},
+    onCancel = () => {}
+  } = {}) {
+    const isDanger = type === 'danger';
+    const isWarning = type === 'warning';
+
+    let iconWrapClass = 'bg-rose-500/15 text-rose-400 border-rose-500/30';
+    let btnClass = 'bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white shadow-lg shadow-rose-600/30';
+
+    if (isWarning) {
+      iconWrapClass = 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+      btnClass = 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white shadow-lg shadow-amber-600/30';
+    } else if (type === 'primary' || type === 'info') {
+      iconWrapClass = 'bg-blue-500/15 text-blue-400 border-blue-500/30';
+      btnClass = 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-600/30';
+    }
+
+    this.openModal(`
+      <div class="text-center space-y-5">
+        <div class="w-16 h-16 rounded-2xl ${iconWrapClass} border flex items-center justify-center mx-auto text-3xl shadow-xl">
+          <span class="material-symbols-outlined text-[34px]">${icon}</span>
+        </div>
+        
+        <div class="space-y-2">
+          <h3 class="text-xl font-bold font-heading text-white">${this.escapeHtml(title)}</h3>
+          <p class="text-xs text-gray-300 max-w-sm mx-auto leading-relaxed">${this.escapeHtml(message)}</p>
+        </div>
+
+        <div class="flex items-center gap-3 pt-2">
+          <button type="button" id="btn-custom-modal-cancel" class="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 font-bold text-xs transition">
+            ${this.escapeHtml(cancelText)}
+          </button>
+          <button type="button" id="btn-custom-modal-confirm" class="flex-1 py-3 rounded-xl ${btnClass} font-bold text-xs transition flex items-center justify-center gap-1.5">
+            <span>${this.escapeHtml(confirmText)}</span>
+          </button>
+        </div>
+      </div>
+    `, 'max-w-md');
+
+    setTimeout(() => {
+      const cancelBtn = document.getElementById('btn-custom-modal-cancel');
+      if (cancelBtn) {
+        cancelBtn.onclick = () => {
+          app.closeModal();
+          if (typeof onCancel === 'function') onCancel();
+        };
+      }
+
+      const confirmBtn = document.getElementById('btn-custom-modal-confirm');
+      if (confirmBtn) {
+        confirmBtn.onclick = async () => {
+          confirmBtn.disabled = true;
+          confirmBtn.innerHTML = '<span class="material-symbols-outlined text-[15px] animate-spin">refresh</span> Bajarilmoqda...';
+          try {
+            if (typeof onConfirm === 'function') {
+              await onConfirm();
+            }
+          } catch (err) {
+            console.error(err);
+          } finally {
+            app.closeModal();
+          }
+        };
+      }
+    }, 20);
+  },
+
+  // IN-APP PRO / VIP GRANT MODAL (Replaces browser prompt() dialog)
+  openGrantProModal(userId, fullName) {
+    this.openModal(`
+      <div class="space-y-5">
+        <div class="text-center space-y-2">
+          <div class="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center justify-center mx-auto text-2xl shadow-lg shadow-amber-500/10">
+            👑
+          </div>
+          <h3 class="text-xl font-bold font-heading text-white">Tarif Biriktirish</h3>
+          <p class="text-xs text-gray-400">Talaba: <span class="text-amber-300 font-semibold">${this.escapeHtml(fullName)}</span></p>
+        </div>
+
+        <form onsubmit="app.handleGrantProSubmit(event, '${userId}', '${this.escapeJs(fullName)}')" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-300 mb-1.5">Tarif Turi</label>
+            <select id="grant-plan-name" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-amber-400">
+              <option value="PRO" class="bg-[#14161f]" selected>👑 PRO (Barcha testlar va tahlillar)</option>
+              <option value="VIP" class="bg-[#14161f]">💎 VIP (Nova AI Cheksiz + Barcha Sertifikatlar)</option>
+              <option value="Lifetime" class="bg-[#14161f]">♾️ Lifetime (Umrbod to'liq ruxsat)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-300 mb-1.5">Muddat</label>
+            <select id="grant-plan-days" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-amber-400">
+              <option value="30" class="bg-[#14161f]" selected>1 Oy (30 kun)</option>
+              <option value="90" class="bg-[#14161f]">3 Oy (90 kun)</option>
+              <option value="180" class="bg-[#14161f]">6 Oy (180 kun)</option>
+              <option value="365" class="bg-[#14161f]">1 Yil (365 kun)</option>
+              <option value="3650" class="bg-[#14161f]">Umrbod (10 yil)</option>
+            </select>
+          </div>
+
+          <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center gap-2">
+            <span class="material-symbols-outlined text-[16px] shrink-0">info</span>
+            <span>Ushbu talabaga tanlangan tarif darhol faollashtiriladi.</span>
+          </div>
+
+          <div class="flex items-center gap-3 pt-2">
+            <button type="button" onclick="app.closeModal()" class="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 font-bold text-xs transition">
+              Bekor Qilish
+            </button>
+            <button type="submit" id="btn-grant-pro-submit" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold text-xs transition shadow-lg shadow-amber-500/20 flex items-center justify-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">verified</span>
+              <span>Biriktirish</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    `, 'max-w-md');
+  },
+
+  async handleGrantProSubmit(e, userId, fullName) {
+    e.preventDefault();
+    const planName = document.getElementById('grant-plan-name')?.value || 'PRO';
+    const durationDays = parseInt(document.getElementById('grant-plan-days')?.value) || 30;
+    const btn = document.getElementById('btn-grant-pro-submit');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="material-symbols-outlined text-[15px] animate-spin">refresh</span> Saqlanmoqda...';
+    }
+
+    const res = await api('/api/subscription/admin/grant', {
+      method: 'POST',
+      body: JSON.stringify({ targetUserId: userId, planName, durationDays })
+    });
+
+    this.closeModal();
+    if (res && res.success) {
+      showToast(`${fullName} ga ${planName} tarifi muvaffaqiyatli berildi! 👑`, 'success');
+      this.renderAdminUsers();
+    } else {
+      showToast(res?.message || 'Tarif berishda xatolik yuz berdi', 'error');
+    }
   },
 
   // ----------------------------------------------------
@@ -5041,19 +5610,26 @@ const app = {
     }
   },
 
-  async deleteAnnouncement(id) {
-    if (!confirm('Ushbu e\'lonni o\'chirishni tasdiqlaysizmi?')) return;
+  deleteAnnouncement(id) {
+    this.confirmModal({
+      title: "E'lonni O'chirish",
+      message: "Ushbu e'lonni o'chirishni tasdiqlaysizmi?",
+      confirmText: "O'chirish",
+      type: "danger",
+      icon: "delete",
+      onConfirm: async () => {
+        const res = await api(`/api/announcements/${id}`, {
+          method: 'DELETE'
+        });
 
-    const res = await api(`/api/announcements/${id}`, {
-      method: 'DELETE'
+        if (res && res.success) {
+          showToast('E\'lon muvaffaqiyatli o\'chirildi', 'success');
+          app.loadAdminAnnouncements();
+        } else {
+          showToast(res?.message || 'Xatolik yuz berdi', 'error');
+        }
+      }
     });
-
-    if (res.success) {
-      showToast('E\'lon o\'chirildi', 'success');
-      this.loadAdminAnnouncements();
-    } else {
-      showToast(res.message || 'Xatolik yuz berdi', 'error');
-    }
   },
 
   // ----------------------------------------------------
@@ -5188,19 +5764,27 @@ const app = {
     }
   },
 
-  async deleteTest(testId, isDashboard = false) {
-    if (!confirm('Haqiqatdan ham ushbu testni o\'chirmoqchimisiz? Barcha savollari ham o\'chiriladi.')) return;
-    const res = await api(`/api/tests/${testId}`, { method: 'DELETE' });
-    if (res.success) {
-      showToast('Test muvaffaqiyatli o\'chirildi!', 'success');
-      if (isDashboard || window.location.hash === '#/admin' || window.location.hash === '') {
-        this.renderAdminDashboard();
-      } else {
-        this.renderAdminTests();
+  deleteTest(testId, isDashboard = false) {
+    this.confirmModal({
+      title: "Testni O'chirish",
+      message: "Haqiqatdan ham ushbu testni o'chirmoqchimisiz? Testga tegishli barcha savollar va natijalar ham o'chiriladi.",
+      confirmText: "Ha, O'chirish",
+      type: "danger",
+      icon: "delete_forever",
+      onConfirm: async () => {
+        const res = await api(`/api/tests/${testId}`, { method: 'DELETE' });
+        if (res && res.success) {
+          showToast('Test muvaffaqiyatli o\'chirildi!', 'success');
+          if (isDashboard || window.location.hash === '#/admin' || window.location.hash === '') {
+            app.renderAdminDashboard();
+          } else {
+            app.renderAdminTests();
+          }
+        } else {
+          showToast(res?.message || 'O\'chirishda xatolik yuz berdi', 'error');
+        }
       }
-    } else {
-      showToast(res.message || 'O\'chirishda xatolik', 'error');
-    }
+    });
   },
 
   // ----------------------------------------------------
@@ -5658,19 +6242,27 @@ const app = {
     }
   },
 
-  async deleteQuestion(testId, questionId) {
-    if (!confirm('Ushbu savolni o\'chirmoqchimisiz?')) return;
-    const res = await api(`/api/tests/${testId}/questions/${questionId}`, { method: 'DELETE' });
-    if (res.success) {
-      showToast('Savol o\'chirildi', 'success');
-      if (window.location.hash.startsWith('#/admin/add-question')) {
-        this.renderAdminAddQuestion(testId);
-      } else if (window.location.hash.startsWith('#/admin/edit-test')) {
-        this.renderAdminEditTest(testId);
+  deleteQuestion(testId, questionId) {
+    this.confirmModal({
+      title: "Savolni O'chirish",
+      message: "Ushbu savolni o'chirib tashlashni tasdiqlaysizmi?",
+      confirmText: "O'chirish",
+      type: "danger",
+      icon: "delete",
+      onConfirm: async () => {
+        const res = await api(`/api/tests/${testId}/questions/${questionId}`, { method: 'DELETE' });
+        if (res && res.success) {
+          showToast('Savol muvaffaqiyatli o\'chirildi', 'success');
+          if (window.location.hash.startsWith('#/admin/add-question')) {
+            app.renderAdminAddQuestion(testId);
+          } else if (window.location.hash.startsWith('#/admin/edit-test')) {
+            app.renderAdminEditTest(testId);
+          }
+        } else {
+          showToast(res?.message || 'Savolni o\'chirishda xatolik', 'error');
+        }
       }
-    } else {
-      showToast(res.message || 'Xatolik', 'error');
-    }
+    });
   },
 
   async handleAddQuestionSubmit(e, testId) {
@@ -6407,11 +6999,24 @@ const app = {
     // Validate that questions have correct answers
     const invalidQuestions = normalizedQuestions.filter(q => !q.options || q.options.length < 2 || !q.options.some(o => o.isCorrect));
     if (invalidQuestions.length > 0) {
-      if (!confirm(`Diqqat: ${invalidQuestions.length} ta savolda variantlar yetarli emas yoki to'g'ri javob belgilanmagan. Baribir davom etishni xohlaysizmi?`)) {
-        return;
-      }
+      this.confirmModal({
+        title: "Savollarda Kamchilik Bor",
+        message: `Diqqat: ${invalidQuestions.length} ta savolda variantlar kam yoki to'g'ri javob belgilanmagan. Baribir yuklashni davom ettirasizmi?`,
+        confirmText: "Ha, Davom Etish",
+        cancelText: "Bekor Qilish",
+        icon: "warning",
+        type: "warning",
+        onConfirm: async () => {
+          await app._executeBulkImport(normalizedQuestions, isNewMode, forcedTestId);
+        }
+      });
+      return;
     }
 
+    await this._executeBulkImport(normalizedQuestions, isNewMode, forcedTestId);
+  },
+
+  async _executeBulkImport(normalizedQuestions, isNewMode, forcedTestId) {
     const btn = document.getElementById('bulk-submit-btn');
     if (btn) {
       btn.disabled = true;
@@ -6583,10 +7188,10 @@ const app = {
             <td class="px-6 py-4 text-right">
               <div class="flex items-center justify-end gap-2">
                 ${u.role !== 'Admin' ? `
-                  <button onclick="app.adminGrantPro('${u.id}', '${this.escapeJs(u.fullName)}')" class="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[11px] font-bold transition flex items-center gap-1" title="PRO/VIP tarif berish">
+                  <button onclick="app.openGrantProModal('${u.id}', '${this.escapeJs(u.fullName)}')" class="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[11px] font-bold transition flex items-center gap-1" title="PRO/VIP tarif berish">
                     <span class="material-symbols-outlined text-[14px]">workspace_premium</span> PRO berish
                   </button>
-                  <button onclick="app.deleteUser('${u.id}')" class="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20" title="O'chirish">
+                  <button onclick="app.deleteUser('${u.id}', '${this.escapeJs(u.fullName)}')" class="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20" title="O'chirish">
                     <span class="material-symbols-outlined text-[16px]">delete</span>
                   </button>
                 ` : '<span class="text-gray-600 text-[11px]">Asosiy</span>'}
@@ -6600,33 +7205,24 @@ const app = {
     }
   },
 
-  async adminGrantPro(userId, fullName) {
-    const plan = prompt(`${fullName} uchun qaysi tarif berilsin? (Pro / VIP / Lifetime):`, 'Pro');
-    if (!plan) return;
-    const days = parseInt(prompt(`Necha kunga berilsin? (Masalan: 30, 365, 3650):`, '30')) || 30;
-
-    const res = await api('/api/subscription/admin/grant', {
-      method: 'POST',
-      body: JSON.stringify({ targetUserId: userId, planName: plan, durationDays: days })
+  deleteUser(userId, fullName = 'Foydalanuvchi') {
+    this.confirmModal({
+      title: "Foydalanuvchini O'chirish",
+      message: `Haqiqatdan ham «${fullName}» nomli talabani tizimdan butunlay o'chirmoqchimisiz? Uning barcha test natijalari, sertifikatlari va hisobi o'chiriladi.`,
+      confirmText: "Ha, O'chirish",
+      cancelText: "Bekor Qilish",
+      icon: "person_remove",
+      type: "danger",
+      onConfirm: async () => {
+        const res = await api(`/api/users/${userId}`, { method: 'DELETE' });
+        if (res && res.success) {
+          showToast('Foydalanuvchi tizimdan muvaffaqiyatli o\'chirildi! 🗑️', 'success');
+          app.renderAdminUsers();
+        } else {
+          showToast(res?.message || 'O\'chirishda xatolik yuz berdi', 'error');
+        }
+      }
     });
-
-    if (res.success) {
-      showToast(`${fullName} ga ${plan} tarifi berildi! 👑`, 'success');
-      this.renderAdminUsers();
-    } else {
-      showToast(res.message || 'Xatolik yuz berdi', 'error');
-    }
-  },
-
-  async deleteUser(userId) {
-    if (!confirm('Foydalanuvchini o\'chirmoqchimisiz?')) return;
-    const res = await api(`/api/users/${userId}`, { method: 'DELETE' });
-    if (res.success) {
-      showToast('Foydalanuvchi o\'chirildi', 'success');
-      this.renderAdminUsers();
-    } else {
-      showToast(res.message || 'Xatolik', 'error');
-    }
   },
 
   // ----------------------------------------------------
@@ -6721,12 +7317,20 @@ const app = {
     }
   },
 
-  async clearAuditLogs() {
-    if (!confirm("Barcha audit qaydlarini tozalashni tasdiqlaysizmi?")) return;
-    localStorage.setItem('tp_audit_logs', JSON.stringify([]));
-    await api('/api/audit-logs/clear', { method: 'POST' });
-    showToast("Audit jurnali tozalandi", "info");
-    this.renderAdminAuditLogs();
+  clearAuditLogs() {
+    this.confirmModal({
+      title: "Audit Jurnalini Tozalash",
+      message: "Barcha tizim audit qaydlarini butunlay tozalashni tasdiqlaysizmi?",
+      confirmText: "Tozalash",
+      type: "danger",
+      icon: "delete_sweep",
+      onConfirm: async () => {
+        localStorage.setItem('tp_audit_logs', JSON.stringify([]));
+        await api('/api/audit-logs/clear', { method: 'POST' });
+        showToast("Audit jurnali muvaffaqiyatli tozalandi", "info");
+        app.renderAdminAuditLogs();
+      }
+    });
   },
 
   // ----------------------------------------------------
@@ -6962,25 +7566,26 @@ const app = {
     }
   },
 
-  async deleteSubject(id) {
-    if (!confirm('Haqiqatdan ham bu fanni o\'chirmoqchimisiz? Unga tegishli barcha testlar ham o\'chirilishi mumkin.')) return;
-    const res = await api(`/api/subjects/${id}`, { method: 'DELETE' });
-    if (res.success) {
-      showToast('Fan muvaffaqiyatli o\'chirildi!', 'success');
-      this.loadSubjects();
-      if (window.location.hash === '#/admin/subjects') {
-        this.renderAdminSubjects();
+  deleteSubject(id) {
+    this.confirmModal({
+      title: "Fanni O'chirish",
+      message: "Haqiqatdan ham bu fanni o'chirmoqchimisiz? Unga tegishli barcha testlar va ma'lumotlar ham o'chirilishi mumkin.",
+      confirmText: "Ha, O'chirish",
+      type: "danger",
+      icon: "delete",
+      onConfirm: async () => {
+        const res = await api(`/api/subjects/${id}`, { method: 'DELETE' });
+        if (res && res.success) {
+          showToast('Fan muvaffaqiyatli o\'chirildi!', 'success');
+          app.loadSubjects();
+          if (window.location.hash === '#/admin/subjects') {
+            app.renderAdminSubjects();
+          }
+        } else {
+          showToast(res?.message || 'Fanni o\'chirishda xatolik', 'error');
+        }
       }
-    } else {
-      showToast(res.message || 'Fanni o\'chirishda xatolik', 'error');
-    }
-  },
-
-  closeModal() {
-    const modalContainer = document.getElementById('modal-container');
-    if (modalContainer) {
-      modalContainer.innerHTML = '';
-    }
+    });
   },
 
   // ----------------------------------------------------
@@ -7134,7 +7739,7 @@ const app = {
         <form onsubmit="app.handleCreatePromoSubmit(event)" class="space-y-4">
           <div>
             <label class="block text-xs font-semibold text-gray-300 mb-1">Promo-kod Nomi</label>
-            <input type="text" id="new-promo-code" required placeholder="Masalan: BEHRUZ2026 yoki TALABA50" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white font-mono uppercase font-bold text-xs focus:outline-none focus:border-amber-400 placeholder:normal-case placeholder:font-sans placeholder:font-normal" />
+            <input type="text" id="new-promo-code" required placeholder="PROMO" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white font-mono uppercase font-bold text-xs focus:outline-none focus:border-amber-400 placeholder:normal-case placeholder:font-sans placeholder:font-normal" />
           </div>
 
           <div>
@@ -7207,15 +7812,23 @@ const app = {
     }
   },
 
-  async deleteAdminPromo(code) {
-    if (!confirm(`Haqiqatdan ham «${code}» promo-kodini o'chirmoqchimisiz?`)) return;
-    const res = await api(`/api/admin/promos/${encodeURIComponent(code)}`, { method: 'DELETE' });
-    if (res.success) {
-      showToast('Promo-kod o\'chirildi', 'success');
-      this.loadAdminPromos();
-    } else {
-      showToast(res.message || 'Xatolik', 'error');
-    }
+  deleteAdminPromo(code) {
+    this.confirmModal({
+      title: "Promo-kodni O'chirish",
+      message: `Haqiqatdan ham «${code}» promo-kodini butunlay o'chirmoqchimisiz?`,
+      confirmText: "O'chirish",
+      type: "danger",
+      icon: "confirmation_number",
+      onConfirm: async () => {
+        const res = await api(`/api/admin/promos/${encodeURIComponent(code)}`, { method: 'DELETE' });
+        if (res && res.success) {
+          showToast('Promo-kod muvaffaqiyatli o\'chirildi', 'success');
+          app.loadAdminPromos();
+        } else {
+          showToast(res?.message || 'O\'chirishda xatolik', 'error');
+        }
+      }
+    });
   },
 
   // ----------------------------------------------------
@@ -7714,7 +8327,7 @@ const app = {
         <form onsubmit="app.submitPromoCode(event)" class="space-y-4">
           <div>
             <label class="block text-xs font-semibold text-gray-300 mb-1.5">Promo-kod</label>
-            <input type="text" id="input-promo-code" required placeholder="Masalan: BEHRUZ2026" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white uppercase tracking-wider font-mono font-bold text-center text-sm focus:outline-none focus:border-purple-400 placeholder:normal-case placeholder:font-sans placeholder:font-normal placeholder:tracking-normal" />
+            <input type="text" id="input-promo-code" required placeholder="PROMO" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white uppercase tracking-wider font-mono font-bold text-center text-sm focus:outline-none focus:border-purple-400 placeholder:normal-case placeholder:font-sans placeholder:font-normal placeholder:tracking-normal" />
           </div>
 
           <div class="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs flex items-center gap-2.5">
@@ -7814,7 +8427,7 @@ const app = {
             <span id="checkout-promo-badge" class="text-[10px] text-gray-400">${this.pendingPromoCode ? '<span class="text-emerald-400 font-bold">Faol</span>' : 'Ixtiyoriy'}</span>
           </div>
           <div class="flex gap-2">
-            <input type="text" id="checkout-promo-input" value="${this.pendingPromoCode || ''}" placeholder="Promo-kodni kiriting" class="flex-1 px-3.5 py-2 rounded-xl bg-white/5 border border-white/15 text-white font-mono uppercase text-xs focus:outline-none focus:border-purple-400 placeholder:normal-case placeholder:font-sans placeholder:font-normal" />
+            <input type="text" id="checkout-promo-input" value="${this.pendingPromoCode || ''}" placeholder="PROMO" class="flex-1 px-3.5 py-2 rounded-xl bg-white/5 border border-white/15 text-white font-mono uppercase text-xs focus:outline-none focus:border-purple-400 placeholder:normal-case placeholder:font-sans placeholder:font-normal" />
             <button type="button" id="btn-apply-checkout-promo" onclick="app.applyCheckoutPromo('${planId}')" class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition whitespace-nowrap">
               Qo'llash
             </button>
@@ -8708,13 +9321,21 @@ const app = {
     }
   },
 
-  async deleteSupportTicket(ticketId) {
-    if (!confirm('Ushbu murojaatni rostdan ham o\'chirmoqchimisiz?')) return;
-    const res = await api(`/api/support/${ticketId}`, { method: 'DELETE' });
-    if (res.success) {
-      showToast('Murojaat o\'chirildi', 'info');
-      this.loadAdminSupportTickets();
-    }
+  deleteSupportTicket(ticketId) {
+    this.confirmModal({
+      title: "Murojaatni O'chirish",
+      message: "Ushbu murojaatni rostdan ham o'chirib tashlamoqchimisiz?",
+      confirmText: "O'chirish",
+      type: "danger",
+      icon: "delete",
+      onConfirm: async () => {
+        const res = await api(`/api/support/${ticketId}`, { method: 'DELETE' });
+        if (res && res.success) {
+          showToast('Murojaat muvaffaqiyatli o\'chirildi', 'info');
+          app.loadAdminSupportTickets();
+        }
+      }
+    });
   }
 };
 
