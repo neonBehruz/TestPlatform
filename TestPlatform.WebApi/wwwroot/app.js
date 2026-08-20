@@ -1145,37 +1145,75 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     } catch (e) {}
 
     if (!adminPromos.length) {
+      const now = new Date();
+      const future = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
       adminPromos = [
-        { code: 'BEHRUZ2026', discountPercent: 20, description: 'Admin rasmiy promo-kodi', isActive: true, createdAt: new Date().toISOString() }
+        { 
+          code: 'BEHRUZ2026', 
+          discountPercent: 20, 
+          description: 'Admin rasmiy promo-kodi', 
+          startDate: now.toISOString().slice(0, 10),
+          endDate: future.toISOString().slice(0, 10),
+          isActive: true, 
+          createdAt: now.toISOString() 
+        }
       ];
       localStorage.setItem('tp_admin_promos', JSON.stringify(adminPromos));
     }
 
-    const foundPromo = adminPromos.find(p => p.code.toUpperCase() === code && p.isActive);
-    if (foundPromo) {
-      const discountPercent = foundPromo.discountPercent || 20;
-      const discountedPro = Math.round(49000 * (1 - discountPercent / 100));
-      const discountedVip = Math.round(79000 * (1 - discountPercent / 100));
-
+    const foundPromo = adminPromos.find(p => p.code.toUpperCase() === code);
+    if (!foundPromo) {
       return {
-        success: true,
-        statusCode: 200,
-        message: `🎉 Promo-kod tasdiqlandi! To'lov uchun ${discountPercent}% chegirma taqdim etildi.`,
-        data: {
-          code: foundPromo.code,
-          discountPercent: discountPercent,
-          discountedProPrice: discountedPro,
-          discountedVipPrice: discountedVip,
-          isValid: true
-        }
+        success: false,
+        statusCode: 400,
+        message: "Kiritilgan promo-kod mavjud emas!",
+        data: { isValid: false }
       };
     }
 
+    if (!foundPromo.isActive) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: "Ushbu promo-kod hozirda nofaol holatda!",
+        data: { isValid: false }
+      };
+    }
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (foundPromo.startDate && todayStr < foundPromo.startDate) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: `Ushbu promo-kod hali kuchga kirmagan (Boshlanish sanasi: ${foundPromo.startDate})`,
+        data: { isValid: false }
+      };
+    }
+
+    if (foundPromo.endDate && todayStr > foundPromo.endDate) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: `Ushbu promo-kodning amal qilish muddati tugagan (${foundPromo.endDate})`,
+        data: { isValid: false }
+      };
+    }
+
+    const discountPercent = Math.min(100, Math.max(1, Number(foundPromo.discountPercent) || 20));
+    const discountedPro = Math.round(49000 * (1 - discountPercent / 100));
+    const discountedVip = Math.round(79000 * (1 - discountPercent / 100));
+
     return {
-      success: false,
-      statusCode: 400,
-      message: "Kiritilgan promo-kod mavjud emas yoki muddati tugagan. Promo-kodni faqat administrator taqdim etadi.",
-      data: { isValid: false }
+      success: true,
+      statusCode: 200,
+      message: `🎉 Promo-kod tasdiqlandi! To'lov uchun ${discountPercent}% chegirma taqdim etildi.`,
+      data: {
+        code: foundPromo.code,
+        discountPercent: discountPercent,
+        discountedProPrice: discountedPro,
+        discountedVipPrice: discountedVip,
+        isValid: true
+      }
     };
   }
 
@@ -1217,8 +1255,18 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     } catch (e) {}
 
     if (!promos.length) {
+      const now = new Date();
+      const future = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
       promos = [
-        { code: 'BEHRUZ2026', discountPercent: 20, description: 'Admin rasmiy promo-kodi', isActive: true, createdAt: new Date().toISOString() }
+        { 
+          code: 'BEHRUZ2026', 
+          discountPercent: 20, 
+          description: 'Admin rasmiy promo-kodi', 
+          startDate: now.toISOString().slice(0, 10),
+          endDate: future.toISOString().slice(0, 10),
+          isActive: true, 
+          createdAt: now.toISOString() 
+        }
       ];
       localStorage.setItem('tp_admin_promos', JSON.stringify(promos));
     }
@@ -1227,12 +1275,15 @@ async function handleStandaloneFallback(endpoint, options = {}) {
       const newCode = (body.code || '').trim().toUpperCase();
       if (!newCode) return { success: false, statusCode: 400, message: "Promo-kod nomini kiriting!" };
       if (promos.some(p => p.code.toUpperCase() === newCode)) {
-        return { success: false, statusCode: 400, message: "Ushbu promo-kod allaqachon mavjud!" };
+        return { success: false, statusCode: 400, message: "Ushbu nomdagi promo-kod allaqachon mavjud!" };
       }
+      const disc = Math.min(100, Math.max(1, Number(body.discountPercent) || 20));
       const newPromo = {
         code: newCode,
-        discountPercent: Number(body.discountPercent) || 20,
+        discountPercent: disc,
         description: body.description || "Admin chegirma kodi",
+        startDate: body.startDate || new Date().toISOString().slice(0, 10),
+        endDate: body.endDate || '',
         isActive: body.isActive !== false,
         createdAt: new Date().toISOString()
       };
@@ -1243,7 +1294,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
 
     if (method === 'PUT' && endpoint.includes('/toggle')) {
       const codeToToggle = endpoint.split('/')[4] || body.code;
-      const found = promos.find(p => p.code.toUpperCase() === (codeToToggle || '').toUpperCase());
+      const found = promos.find(p => p.code.toUpperCase() === decodeURIComponent(codeToToggle || '').toUpperCase());
       if (found) {
         found.isActive = !found.isActive;
         localStorage.setItem('tp_admin_promos', JSON.stringify(promos));
@@ -1252,9 +1303,34 @@ async function handleStandaloneFallback(endpoint, options = {}) {
       return { success: false, statusCode: 404, message: "Promo-kod topilmadi" };
     }
 
+    if (method === 'PUT') {
+      const codeToEdit = endpoint.split('/')[4] || body.originalCode || body.code;
+      const foundIndex = promos.findIndex(p => p.code.toUpperCase() === decodeURIComponent(codeToEdit || '').toUpperCase());
+      if (foundIndex >= 0) {
+        const newCode = (body.code || promos[foundIndex].code).trim().toUpperCase();
+        if (newCode !== promos[foundIndex].code && promos.some(p => p.code.toUpperCase() === newCode)) {
+          return { success: false, statusCode: 400, message: "Bu nomdagi boshqa promo-kod allaqachon mavjud!" };
+        }
+        const disc = Math.min(100, Math.max(1, Number(body.discountPercent) || promos[foundIndex].discountPercent || 20));
+        promos[foundIndex] = {
+          ...promos[foundIndex],
+          code: newCode,
+          discountPercent: disc,
+          description: body.description !== undefined ? body.description : promos[foundIndex].description,
+          startDate: body.startDate !== undefined ? body.startDate : promos[foundIndex].startDate,
+          endDate: body.endDate !== undefined ? body.endDate : promos[foundIndex].endDate,
+          isActive: body.isActive !== undefined ? body.isActive : promos[foundIndex].isActive,
+          updatedAt: new Date().toISOString()
+        };
+        localStorage.setItem('tp_admin_promos', JSON.stringify(promos));
+        return { success: true, statusCode: 200, message: "Promo-kod muvaffaqiyatli yangilandi!", data: promos[foundIndex] };
+      }
+      return { success: false, statusCode: 404, message: "Promo-kod topilmadi" };
+    }
+
     if (method === 'DELETE') {
       const codeToDelete = endpoint.split('/')[4] || body.code;
-      promos = promos.filter(p => p.code.toUpperCase() !== (codeToDelete || '').toUpperCase());
+      promos = promos.filter(p => p.code.toUpperCase() !== decodeURIComponent(codeToDelete || '').toUpperCase());
       localStorage.setItem('tp_admin_promos', JSON.stringify(promos));
       return { success: true, statusCode: 200, message: "Promo-kod o'chirildi" };
     }
@@ -7934,7 +8010,7 @@ const app = {
                   <th class="py-3 px-4 font-bold">Promo-kod</th>
                   <th class="py-3 px-4 font-bold">Chegirma</th>
                   <th class="py-3 px-4 font-bold">Izoh</th>
-                  <th class="py-3 px-4 font-bold">Yaratilgan sana</th>
+                  <th class="py-3 px-4 font-bold">Amal Qilish Muddati</th>
                   <th class="py-3 px-4 font-bold">Holati</th>
                   <th class="py-3 px-4 font-bold text-right">Amallar</th>
                 </tr>
@@ -7989,38 +8065,69 @@ const app = {
       currentPage = Math.max(1, Math.min(pg, totalPages));
       const start = (currentPage - 1) * PAGE_SIZE;
       const pagePromos = promos.slice(start, start + PAGE_SIZE);
+      const todayStr = new Date().toISOString().slice(0, 10);
 
       tbody.innerHTML = pagePromos.map(p => {
-        const createdDate = p.createdAt ? new Date(p.createdAt).toLocaleDateString('uz-UZ') : 'Yaqinda';
         const isActive = p.isActive !== false;
+        const isExpired = p.endDate && todayStr > p.endDate;
+        const isPending = p.startDate && todayStr < p.startDate;
+
+        let dateDisplay = '';
+        if (p.startDate && p.endDate) {
+          dateDisplay = `<span class="font-mono">${p.startDate}</span> → <span class="font-mono">${p.endDate}</span>`;
+        } else if (p.startDate) {
+          dateDisplay = `<span class="font-mono">${p.startDate}</span> dan boshlab`;
+        } else if (p.endDate) {
+          dateDisplay = `<span class="font-mono">${p.endDate}</span> gacha`;
+        } else {
+          dateDisplay = `<span class="text-gray-500">Cheksiz muddat</span>`;
+        }
+
+        let statusBadge = '';
+        if (!isActive) {
+          statusBadge = '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-500/20 text-gray-400 border border-gray-500/30">⚪ Nofaol</span>';
+        } else if (isExpired) {
+          statusBadge = '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">⏳ Muddati o\'tgan</span>';
+        } else if (isPending) {
+          statusBadge = '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">🕒 Kutilmoqda</span>';
+        } else {
+          statusBadge = '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">🟢 Faol</span>';
+        }
+
+        // Prepare safe JSON for edit
+        const safePromoObj = JSON.stringify(p).replace(/"/g, '&quot;');
 
         return `
           <tr class="hover:bg-white/[0.02] transition">
-            <td class="py-3.5 px-4 font-mono font-black text-amber-300 text-sm tracking-wider">
-              ${this.escapeHtml(p.code)}
+            <td class="py-3.5 px-4">
+              <div class="font-mono font-black text-amber-300 text-sm tracking-wider flex items-center gap-1.5">
+                <span>${this.escapeHtml(p.code)}</span>
+              </div>
             </td>
             <td class="py-3.5 px-4">
-              <span class="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-black text-xs">
+              <span class="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-black text-xs border border-emerald-500/30">
                 -${p.discountPercent || 20}%
               </span>
             </td>
             <td class="py-3.5 px-4 text-gray-300 max-w-xs truncate">
               ${this.escapeHtml(p.description || 'Admin chegirma kodi')}
             </td>
-            <td class="py-3.5 px-4 text-gray-400 font-mono text-[11px]">
-              ${createdDate}
+            <td class="py-3.5 px-4 text-gray-300 text-[11px]">
+              ${dateDisplay}
             </td>
             <td class="py-3.5 px-4">
-              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">
-                ${isActive ? 'Faol' : 'Nofaol'}
-              </span>
+              ${statusBadge}
             </td>
             <td class="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
-              <button onclick="app.togglePromoActive('${this.escapeJs(p.code)}')" class="px-2.5 py-1.5 rounded-lg ${isActive ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'} font-semibold text-[11px] transition">
-                ${isActive ? 'Nofaol qilish' : 'Faollashtirish'}
+              <button onclick="app.openEditPromoModal(${safePromoObj})" class="p-1.5 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 transition inline-flex items-center justify-center" title="Tahrirlash">
+                <span class="material-symbols-outlined text-[15px]">edit</span>
               </button>
-              <button onclick="app.deleteAdminPromo('${this.escapeJs(p.code)}')" class="px-2.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-semibold text-[11px] transition">
-                O'chirish
+              <button onclick="app.togglePromoActive('${this.escapeJs(p.code)}')" class="px-2.5 py-1.5 rounded-lg ${isActive ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'} font-semibold text-[11px] transition inline-flex items-center gap-1" title="Holatni o'zgartirish">
+                <span class="material-symbols-outlined text-[13px]">${isActive ? 'power_settings_new' : 'check_circle'}</span>
+                <span>${isActive ? 'Nofaol qilish' : 'Faollashtirish'}</span>
+              </button>
+              <button onclick="app.deleteAdminPromo('${this.escapeJs(p.code)}')" class="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition inline-flex items-center justify-center" title="O'chirish">
+                <span class="material-symbols-outlined text-[15px]">delete</span>
               </button>
             </td>
           </tr>
@@ -8074,6 +8181,9 @@ const app = {
   },
 
   openCreatePromoModal() {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const nextMonth = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
     this.openModal(`
       <div class="space-y-5">
         <div class="flex items-center gap-3 pb-3 border-b border-white/10">
@@ -8082,36 +8192,131 @@ const app = {
           </div>
           <div>
             <h3 class="text-base font-bold text-white font-heading">Yangi Promo-kod Yaratish</h3>
-            <p class="text-xs text-gray-400">Ushbu promo-kod orqali talabalar to'lovda chegirmaga ega bo'ladi</p>
+            <p class="text-xs text-gray-400">Talabalar to'lov paytida chegirmaga ega bo'lishi uchun kod sozlang</p>
           </div>
         </div>
 
         <form onsubmit="app.handleCreatePromoSubmit(event)" class="space-y-4">
           <div>
-            <label class="block text-xs font-semibold text-gray-300 mb-1">Promo-kod Nomi</label>
+            <label class="block text-xs font-semibold text-gray-300 mb-1">Promo-kod Nomi *</label>
             <input type="text" id="new-promo-code" required placeholder="PROMO" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white font-mono uppercase font-bold text-xs focus:outline-none focus:border-amber-400 placeholder:normal-case placeholder:font-sans placeholder:font-normal" />
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-gray-300 mb-1">Chegirma Miqdori (%)</label>
-            <select id="new-promo-discount" required class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-amber-400">
-              <option value="10" class="bg-[#14161f]">10% Chegirma</option>
-              <option value="20" class="bg-[#14161f]" selected>20% Chegirma (Standart)</option>
-              <option value="30" class="bg-[#14161f]">30% Chegirma</option>
-              <option value="50" class="bg-[#14161f]">50% Chegirma</option>
-              <option value="70" class="bg-[#14161f]">70% Chegirma</option>
-            </select>
+            <label class="block text-xs font-semibold text-gray-300 mb-1">Chegirma Foizi (%) *</label>
+            <div class="flex items-center gap-2">
+              <input type="number" id="new-promo-discount" min="1" max="100" value="20" required class="w-28 px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white font-bold text-xs focus:outline-none focus:border-amber-400" />
+              <div class="flex items-center gap-1 flex-wrap">
+                <button type="button" onclick="document.getElementById('new-promo-discount').value = 10" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-[11px] font-bold">10%</button>
+                <button type="button" onclick="document.getElementById('new-promo-discount').value = 20" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-[11px] font-bold">20%</button>
+                <button type="button" onclick="document.getElementById('new-promo-discount').value = 30" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-[11px] font-bold">30%</button>
+                <button type="button" onclick="document.getElementById('new-promo-discount').value = 50" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-[11px] font-bold">50%</button>
+                <button type="button" onclick="document.getElementById('new-promo-discount').value = 70" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-[11px] font-bold">70%</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1">Boshlanish Sanasi</label>
+              <input type="date" id="new-promo-start-date" value="${todayStr}" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-amber-400" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1">Tugash Sanasi</label>
+              <input type="date" id="new-promo-end-date" value="${nextMonth}" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-amber-400" />
+            </div>
           </div>
 
           <div>
             <label class="block text-xs font-semibold text-gray-300 mb-1">Tavsif / Izoh</label>
-            <input type="text" id="new-promo-desc" placeholder="Masalan: A'lochi talabalar uchun maxsus chegirma" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-amber-400" />
+            <input type="text" id="new-promo-desc" placeholder="Masalan: Bahorgi chegirma aksiyasi" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-amber-400" />
+          </div>
+
+          <div class="flex items-center gap-2 pt-1">
+            <input type="checkbox" id="new-promo-active" checked class="w-4 h-4 rounded text-amber-500 bg-white/10 border-white/20 focus:ring-0 cursor-pointer" />
+            <label for="new-promo-active" class="text-xs text-gray-300 font-semibold cursor-pointer">Yaratilgach darhol faollashtirilsin</label>
           </div>
 
           <button type="submit" id="btn-save-promo" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-extrabold text-xs shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-1.5">
             <span class="material-symbols-outlined text-[16px]">check</span>
-            <span>Promo-kodni Saqlash</span>
+            <span>Promo-kodni Yaratish</span>
           </button>
+        </form>
+      </div>
+    `);
+  },
+
+  openEditPromoModal(promo) {
+    if (!promo || !promo.code) return;
+    const originalCode = promo.code;
+    const discount = promo.discountPercent || 20;
+    const desc = promo.description || '';
+    const startDate = promo.startDate || '';
+    const endDate = promo.endDate || '';
+    const isActive = promo.isActive !== false;
+
+    this.openModal(`
+      <div class="space-y-5">
+        <div class="flex items-center gap-3 pb-3 border-b border-white/10">
+          <div class="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center text-xl shrink-0">
+            ✏️
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white font-heading">Promo-kodni Tahrirlash</h3>
+            <p class="text-xs text-gray-400">«${this.escapeHtml(originalCode)}» promo-kodi ma'lumotlarini o'zgartirish</p>
+          </div>
+        </div>
+
+        <form onsubmit="app.handleEditPromoSubmit(event, '${this.escapeJs(originalCode)}')" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-300 mb-1">Promo-kod Nomi *</label>
+            <input type="text" id="edit-promo-code" value="${this.escapeHtml(originalCode)}" required class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white font-mono uppercase font-bold text-xs focus:outline-none focus:border-blue-400" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-300 mb-1">Chegirma Foizi (%) *</label>
+            <div class="flex items-center gap-2">
+              <input type="number" id="edit-promo-discount" min="1" max="100" value="${discount}" required class="w-28 px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white font-bold text-xs focus:outline-none focus:border-blue-400" />
+              <div class="flex items-center gap-1 flex-wrap">
+                <button type="button" onclick="document.getElementById('edit-promo-discount').value = 10" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-[11px] font-bold">10%</button>
+                <button type="button" onclick="document.getElementById('edit-promo-discount').value = 20" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-[11px] font-bold">20%</button>
+                <button type="button" onclick="document.getElementById('edit-promo-discount').value = 30" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-[11px] font-bold">30%</button>
+                <button type="button" onclick="document.getElementById('edit-promo-discount').value = 50" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-[11px] font-bold">50%</button>
+                <button type="button" onclick="document.getElementById('edit-promo-discount').value = 70" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-[11px] font-bold">70%</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1">Boshlanish Sanasi</label>
+              <input type="date" id="edit-promo-start-date" value="${startDate}" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-blue-400" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1">Tugash Sanasi</label>
+              <input type="date" id="edit-promo-end-date" value="${endDate}" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-blue-400" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-300 mb-1">Tavsif / Izoh</label>
+            <input type="text" id="edit-promo-desc" value="${this.escapeHtml(desc)}" placeholder="Masalan: Maxsus chegirma" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-blue-400" />
+          </div>
+
+          <div class="flex items-center gap-2 pt-1">
+            <input type="checkbox" id="edit-promo-active" ${isActive ? 'checked' : ''} class="w-4 h-4 rounded text-blue-500 bg-white/10 border-white/20 focus:ring-0 cursor-pointer" />
+            <label for="edit-promo-active" class="text-xs text-gray-300 font-semibold cursor-pointer">Promo-kod faol holatda bo'lsin</label>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+            <button type="button" onclick="app.closeModal()" class="px-4 py-2.5 rounded-xl bg-white/5 text-gray-300 text-xs font-semibold hover:bg-white/10 transition">
+              Bekor qilish
+            </button>
+            <button type="submit" id="btn-edit-save-promo" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs shadow-lg shadow-blue-500/25 transition flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">save</span>
+              <span>O'zgarishlarni Saqlash</span>
+            </button>
+          </div>
         </form>
       </div>
     `);
@@ -8121,10 +8326,18 @@ const app = {
     e.preventDefault();
     const code = document.getElementById('new-promo-code')?.value.trim().toUpperCase();
     const discountPercent = Number(document.getElementById('new-promo-discount')?.value) || 20;
-    const description = document.getElementById('new-promo-desc')?.value.trim() || 'Admin promo-kodi';
+    const startDate = document.getElementById('new-promo-start-date')?.value || '';
+    const endDate = document.getElementById('new-promo-end-date')?.value || '';
+    const description = document.getElementById('new-promo-desc')?.value.trim() || 'Admin chegirma kodi';
+    const isActive = document.getElementById('new-promo-active')?.checked ?? true;
 
     if (!code) {
       showToast('Promo-kod nomini kiriting!', 'error');
+      return;
+    }
+
+    if (startDate && endDate && startDate > endDate) {
+      showToast('Boshlanish sanasi tugash sanasidan keyin bo\'lishi mumkin emas!', 'error');
       return;
     }
 
@@ -8136,7 +8349,7 @@ const app = {
 
     const res = await api('/api/admin/promos', {
       method: 'POST',
-      body: JSON.stringify({ code, discountPercent, description, isActive: true })
+      body: JSON.stringify({ code, discountPercent, description, startDate, endDate, isActive })
     });
 
     if (res.success) {
@@ -8146,9 +8359,52 @@ const app = {
     } else {
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">check</span> <span>Promo-kodni Saqlash</span>';
+        btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">check</span> <span>Promo-kodni Yaratish</span>';
       }
       showToast(res.message || 'Promo-kod yaratishda xatolik', 'error');
+    }
+  },
+
+  async handleEditPromoSubmit(e, originalCode) {
+    e.preventDefault();
+    const code = document.getElementById('edit-promo-code')?.value.trim().toUpperCase();
+    const discountPercent = Number(document.getElementById('edit-promo-discount')?.value) || 20;
+    const startDate = document.getElementById('edit-promo-start-date')?.value || '';
+    const endDate = document.getElementById('edit-promo-end-date')?.value || '';
+    const description = document.getElementById('edit-promo-desc')?.value.trim() || '';
+    const isActive = document.getElementById('edit-promo-active')?.checked ?? true;
+
+    if (!code) {
+      showToast('Promo-kod nomini kiriting!', 'error');
+      return;
+    }
+
+    if (startDate && endDate && startDate > endDate) {
+      showToast('Boshlanish sanasi tugash sanasidan keyin bo\'lishi mumkin emas!', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-edit-save-promo');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = 'Saqlanmoqda...';
+    }
+
+    const res = await api(`/api/admin/promos/${encodeURIComponent(originalCode)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ code, discountPercent, description, startDate, endDate, isActive })
+    });
+
+    if (res.success) {
+      showToast('Promo-kod muvaffaqiyatli yangilandi!', 'success');
+      this.closeModal();
+      this.loadAdminPromos();
+    } else {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span> <span>O\'zgarishlarni Saqlash</span>';
+      }
+      showToast(res.message || 'Promo-kodni yangilashda xatolik', 'error');
     }
   },
 
@@ -8166,13 +8422,14 @@ const app = {
     this.confirmModal({
       title: "Promo-kodni O'chirish",
       message: `Haqiqatdan ham «${code}» promo-kodini butunlay o'chirmoqchimisiz?`,
-      confirmText: "O'chirish",
+      confirmText: "Ha, O'chirish",
+      cancelText: "Bekor Qilish",
       type: "danger",
       icon: "confirmation_number",
       onConfirm: async () => {
         const res = await api(`/api/admin/promos/${encodeURIComponent(code)}`, { method: 'DELETE' });
         if (res && res.success) {
-          showToast('Promo-kod muvaffaqiyatli o\'chirildi', 'success');
+          showToast('Promo-kod muvaffaqiyatli o\'chirildi! 🗑️', 'success');
           app.loadAdminPromos();
         } else {
           showToast(res?.message || 'O\'chirishda xatolik', 'error');
