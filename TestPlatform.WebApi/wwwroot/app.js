@@ -21,33 +21,22 @@ const state = {
 };
 
 // Storage Helpers:
-// - Student: Saved in localStorage (persists across browser restarts / days)
-// - Admin: Saved in sessionStorage (only for current browser tab/session; never saved in localStorage)
 function saveSession(token, user) {
   state.token = token || '';
   state.user = user || null;
-  if (user && (user.role === 'Admin' || user.role === 1)) {
-    // Admin session is strictly tab/session only
-    sessionStorage.setItem('tp_token', state.token);
-    sessionStorage.setItem('tp_user', JSON.stringify(state.user));
-    localStorage.removeItem('tp_token');
-    localStorage.removeItem('tp_user');
-  } else if (user) {
-    // Student session is persisted
+  if (token && user) {
     localStorage.setItem('tp_token', state.token);
     localStorage.setItem('tp_user', JSON.stringify(state.user));
-    sessionStorage.removeItem('tp_token');
-    sessionStorage.removeItem('tp_user');
+    sessionStorage.setItem('tp_token', state.token);
+    sessionStorage.setItem('tp_user', JSON.stringify(state.user));
   }
 }
 
 function updateUserSession(user) {
   state.user = user;
-  if (user && (user.role === 'Admin' || user.role === 1)) {
-    sessionStorage.setItem('tp_user', JSON.stringify(user));
-    localStorage.removeItem('tp_user');
-  } else if (user) {
+  if (user) {
     localStorage.setItem('tp_user', JSON.stringify(user));
+    sessionStorage.setItem('tp_user', JSON.stringify(user));
   }
 }
 
@@ -1078,46 +1067,10 @@ const app = {
     document.documentElement.classList.remove('modal-open', 'overflow-hidden');
     document.body.style.overflow = '';
     document.documentElement.style.overflow = '';
-    // 1. Ensure any legacy admin session in localStorage is completely wiped
-    try {
-      const localUserStr = localStorage.getItem('tp_user');
-      if (localUserStr) {
-        const localUser = JSON.parse(localUserStr);
-        if (localUser && (localUser.role === 'Admin' || localUser.role === 1)) {
-          localStorage.removeItem('tp_token');
-          localStorage.removeItem('tp_user');
-        }
-      }
-    } catch (e) {
-      localStorage.removeItem('tp_token');
-      localStorage.removeItem('tp_user');
-    }
 
-    // 2. Restore session:
-    // - Check sessionStorage first (temporary session e.g. Admin or current tab)
-    // - If not in sessionStorage, check localStorage for Student only
-    let restoredToken = sessionStorage.getItem('tp_token');
-    let restoredUser = sessionStorage.getItem('tp_user');
-
-    if (!restoredToken || !restoredUser) {
-      const localToken = localStorage.getItem('tp_token');
-      const localUserStr = localStorage.getItem('tp_user');
-      if (localToken && localUserStr) {
-        try {
-          const parsed = JSON.parse(localUserStr);
-          if (parsed && parsed.role !== 'Admin' && parsed.role !== 1) {
-            restoredToken = localToken;
-            restoredUser = localUserStr;
-          } else {
-            localStorage.removeItem('tp_token');
-            localStorage.removeItem('tp_user');
-          }
-        } catch (e) {
-          localStorage.removeItem('tp_token');
-          localStorage.removeItem('tp_user');
-        }
-      }
-    }
+    // Restore session reliably
+    let restoredToken = localStorage.getItem('tp_token') || sessionStorage.getItem('tp_token');
+    let restoredUser = localStorage.getItem('tp_user') || sessionStorage.getItem('tp_user');
 
     if (restoredToken && restoredUser) {
       try {
@@ -1131,7 +1084,6 @@ const app = {
     }
 
     // If user is not authenticated:
-    // If opening root or admin page without admin login, route to #/login
     if (!state.user) {
       if (!window.location.hash || window.location.hash === '#/' || window.location.hash === '#' || window.location.hash.startsWith('#/admin')) {
         window.location.hash = '#/login';
@@ -1326,10 +1278,11 @@ const app = {
     const container = document.getElementById('nav-auth-container');
     const mainNav = document.getElementById('main-nav');
     const adminNav = document.getElementById('nav-admin');
+    const mobileAdminNav = document.getElementById('mobile-nav-admin');
     if (!container) return;
 
     if (state.user) {
-      const isAdmin = state.user.role === 'Admin';
+      const isAdmin = state.user.role === 'Admin' || state.user.role === 1;
       const isPro = !!state.user.isPremium || state.user.premiumPlan === 'Pro' || state.user.premiumPlan === 'VIP' || state.user.premiumPlan === 'Lifetime';
       const isVip = state.user.premiumPlan === 'VIP' || state.user.premiumPlan === 'Lifetime';
       const proBadgeHtml = isVip ? '<span class="badge-vip">💎 VIP</span>' : (isPro ? '<span class="badge-pro">👑 PRO</span>' : '');
@@ -1344,9 +1297,27 @@ const app = {
       if (adminNav) {
         if (isAdmin) {
           adminNav.classList.remove('hidden');
+          adminNav.classList.add('inline-flex');
         } else {
           adminNav.classList.add('hidden');
+          adminNav.classList.remove('inline-flex');
         }
+      }
+      if (mobileAdminNav) {
+        if (isAdmin) {
+          mobileAdminNav.classList.remove('hidden');
+          mobileAdminNav.classList.add('block');
+        } else {
+          mobileAdminNav.classList.add('hidden');
+          mobileAdminNav.classList.remove('block');
+        }
+      }
+
+      // Control Dashboard link destination (Admin goes to #/admin, Student to #/dashboard)
+      const navDash = document.getElementById('nav-dashboard');
+      if (navDash) {
+        navDash.setAttribute('href', isAdmin ? '#/admin' : '#/dashboard');
+        navDash.innerHTML = `<span class="material-symbols-outlined text-[16px]">${isAdmin ? 'admin_panel_settings' : 'dashboard'}</span> <span>${isAdmin ? 'Admin Dashboard' : 'Dashboard'}</span>`;
       }
 
       // Control Tariflar PRO visibility (Only for Students / not Admin)
@@ -1369,6 +1340,12 @@ const app = {
 
       container.innerHTML = `
         <div class="flex items-center gap-2">
+          ${isAdmin ? `
+            <a href="#/admin" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition shadow-sm" title="Admin Boshqaruv Markazi">
+              <span class="material-symbols-outlined text-[16px] text-amber-400">admin_panel_settings</span>
+              <span>Admin Panel</span>
+            </a>
+          ` : ''}
           <a href="#/profile" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border ${isPro ? 'border-amber-500/30 shadow-sm shadow-amber-500/10' : 'border-white/10'} transition group" title="Profil va sozlamalar">
             <div class="w-7 h-7 rounded-lg ${isAdmin ? 'bg-amber-500' : isPro ? 'bg-gradient-to-tr from-amber-500 to-orange-500' : 'bg-blue-600'} flex items-center justify-center text-xs font-bold text-black shadow-sm">
               ${(state.user.fullName || 'U').charAt(0).toUpperCase()}
@@ -1378,7 +1355,7 @@ const app = {
                 <span>${formatFullName(state.user.fullName)}</span>
                 ${proBadgeHtml}
               </div>
-              <div class="text-[10px] ${isAdmin ? 'text-amber-400' : isPro ? 'text-amber-300 font-bold' : 'text-emerald-400'} font-semibold leading-tight">${isAdmin ? 'Admin' : (isPro ? '👑 PRO Talaba' : 'Talaba')}</div>
+              <div class="text-[10px] ${isAdmin ? 'text-amber-400 font-bold' : isPro ? 'text-amber-300 font-bold' : 'text-emerald-400'} font-semibold leading-tight">${isAdmin ? '👑 Administrator' : (isPro ? '👑 PRO Talaba' : 'Talaba')}</div>
             </div>
           </a>
           <button onclick="app.logout()" class="p-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 transition" title="Chiqish">
@@ -1387,12 +1364,12 @@ const app = {
         </div>
       `;
     } else {
-      // Hide entire main navigation menu for unauthenticated guests
       if (mainNav) {
         mainNav.classList.add('hidden');
         mainNav.classList.remove('flex');
       }
       if (adminNav) adminNav.classList.add('hidden');
+      if (mobileAdminNav) mobileAdminNav.classList.add('hidden');
 
       container.innerHTML = `
         <a href="#/login" class="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-200 border border-white/10 text-xs font-medium transition inline-flex items-center gap-1">
