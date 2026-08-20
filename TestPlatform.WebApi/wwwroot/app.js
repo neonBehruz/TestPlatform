@@ -24,7 +24,20 @@ const state = {
 function saveSession(token, user) {
   state.token = token || '';
   state.user = user || null;
-  if (token && user) {
+  if (state.user) {
+    const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || state.user.email === 'behruzsagdullayev0707@gmail.com';
+    if (!isAdmin) {
+      if (!state.user.hasPaidSubscription) {
+        state.user.isPremium = false;
+        state.user.premiumPlan = null;
+      }
+    } else {
+      state.user.role = 'Admin';
+      state.user.isPremium = true;
+      state.user.premiumPlan = 'VIP';
+    }
+  }
+  if (token && state.user) {
     localStorage.setItem('tp_token', state.token);
     localStorage.setItem('tp_user', JSON.stringify(state.user));
     sessionStorage.setItem('tp_token', state.token);
@@ -34,9 +47,14 @@ function saveSession(token, user) {
 
 function updateUserSession(user) {
   state.user = user;
-  if (user) {
-    localStorage.setItem('tp_user', JSON.stringify(user));
-    sessionStorage.setItem('tp_user', JSON.stringify(user));
+  if (state.user) {
+    const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || state.user.email === 'behruzsagdullayev0707@gmail.com';
+    if (!isAdmin && !state.user.hasPaidSubscription) {
+      state.user.isPremium = false;
+      state.user.premiumPlan = null;
+    }
+    localStorage.setItem('tp_user', JSON.stringify(state.user));
+    sessionStorage.setItem('tp_user', JSON.stringify(state.user));
   }
 }
 
@@ -640,6 +658,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     } catch (e) {}
 
     // Fallback certificate
+    const isOwnerAdmin = state.user?.role === 'Admin' || state.user?.email === 'behruzsagdullayev0707@gmail.com';
     return {
       success: true,
       statusCode: 200,
@@ -647,11 +666,11 @@ async function handleStandaloneFallback(endpoint, options = {}) {
         id: 'cert_demo',
         certificateNumber: num || 'CERT-20260820-A1B2C3',
         verificationCode: 'VERIF888',
-        studentName: state.user?.fullName || 'Behruz Sagdullayev',
+        studentName: state.user?.fullName || 'Talaba',
         testTitle: 'Informatika va Dasturlash',
         issuedAt: new Date().toISOString(),
-        isPremium: true,
-        tier: 'Gold'
+        isPremium: isOwnerAdmin || !!state.user?.isPremium,
+        tier: isOwnerAdmin ? 'Diamond' : (state.user?.isPremium ? (state.user?.premiumPlan === 'VIP' ? 'Diamond' : 'Gold') : 'Standard')
       }
     };
   }
@@ -669,22 +688,54 @@ async function handleStandaloneFallback(endpoint, options = {}) {
   if (endpoint.startsWith('/api/leaderboard')) {
     try {
       const attempts = JSON.parse(localStorage.getItem('tp_local_attempts') || '[]');
-      const userEntries = attempts.map((a, idx) => ({
-        rank: idx + 1,
-        studentId: a.studentId || 'std_1',
-        studentName: a.studentName || 'Talaba',
-        totalScore: a.totalScore,
-        earnedScore: a.earnedScore,
-        percentage: a.percentage,
-        testsPassedCount: 1,
-        averageScore: a.percentage,
-        isPremium: true,
-        premiumPlan: 'Pro'
-      }));
+      const userEntries = attempts.map((a, idx) => {
+        const isEntryAdmin = a.studentEmail === 'behruzsagdullayev0707@gmail.com' || (state.user?.role === 'Admin' && (a.studentName || '').includes('Behruz'));
+        return {
+          rank: idx + 1,
+          studentId: a.studentId || 'std_1',
+          studentName: a.studentName || 'Talaba',
+          totalScore: a.totalScore,
+          earnedScore: a.earnedScore,
+          percentage: a.percentage,
+          testsPassedCount: 1,
+          averageScore: a.percentage,
+          isPremium: isEntryAdmin,
+          premiumPlan: isEntryAdmin ? 'VIP' : null
+        };
+      });
       return { success: true, statusCode: 200, data: userEntries };
     } catch (e) {
       return { success: true, statusCode: 200, data: [] };
     }
+  }
+
+  // 10.1 Users List
+  if (endpoint === '/api/users' || endpoint.startsWith('/api/users')) {
+    let users = [];
+    try {
+      users = JSON.parse(localStorage.getItem('tp_local_users') || '[]');
+    } catch (e) {}
+
+    const adminUser = {
+      id: '95EBB8D9-F98D-4075-8DEB-F9FED3C2D212',
+      fullName: 'Behruz Sagdullayev',
+      email: 'behruzsagdullayev0707@gmail.com',
+      role: 'Admin',
+      isActive: true,
+      isPremium: true,
+      premiumPlan: 'VIP'
+    };
+
+    const studentList = users
+      .filter(u => (u.email || '').toLowerCase() !== 'behruzsagdullayev0707@gmail.com')
+      .map(u => ({
+        ...u,
+        role: 'Student',
+        isPremium: u.hasPaidSubscription ? !!u.isPremium : false,
+        premiumPlan: u.hasPaidSubscription ? (u.premiumPlan || null) : null
+      }));
+
+    return { success: true, statusCode: 200, data: [adminUser, ...studentList] };
   }
 
   // 11. Dashboard Summary
@@ -1274,12 +1325,44 @@ const app = {
       try {
         state.token = restoredToken;
         state.user = JSON.parse(restoredUser);
+        const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || state.user.email === 'behruzsagdullayev0707@gmail.com';
+        if (!isAdmin) {
+          // Reset any cached/mock student PRO/VIP status unless actively paid
+          if (!state.user.hasPaidSubscription) {
+            state.user.isPremium = false;
+            state.user.premiumPlan = null;
+            updateUserSession(state.user);
+          }
+        } else {
+          state.user.role = 'Admin';
+          state.user.isPremium = true;
+          state.user.premiumPlan = 'VIP';
+          updateUserSession(state.user);
+        }
       } catch (e) {
         clearSession();
       }
     } else {
       clearSession();
     }
+
+    // Clean up local student records
+    try {
+      const localUsers = JSON.parse(localStorage.getItem('tp_local_users') || '[]');
+      let modified = false;
+      localUsers.forEach(u => {
+        if (u.role !== 'Admin' && (u.email || '').toLowerCase() !== 'behruzsagdullayev0707@gmail.com') {
+          if (!u.hasPaidSubscription && (u.isPremium || u.premiumPlan)) {
+            u.isPremium = false;
+            u.premiumPlan = null;
+            modified = true;
+          }
+        }
+      });
+      if (modified) {
+        localStorage.setItem('tp_local_users', JSON.stringify(localUsers));
+      }
+    } catch (e) {}
 
     // If user is not authenticated:
     if (!state.user) {
@@ -1482,10 +1565,12 @@ const app = {
     if (!container) return;
 
     if (state.user) {
-      const isAdmin = state.user.role === 'Admin' || state.user.role === 1;
-      const isPro = !!state.user.isPremium || state.user.premiumPlan === 'Pro' || state.user.premiumPlan === 'VIP' || state.user.premiumPlan === 'Lifetime';
-      const isVip = state.user.premiumPlan === 'VIP' || state.user.premiumPlan === 'Lifetime';
-      const proBadgeHtml = isVip ? '<span class="badge-vip">💎 VIP</span>' : (isPro ? '<span class="badge-pro">👑 PRO</span>' : '');
+      const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || state.user.email === 'behruzsagdullayev0707@gmail.com';
+      const isPro = !isAdmin && (state.user.isPremium || state.user.premiumPlan === 'Pro' || state.user.premiumPlan === 'VIP');
+      const isVip = !isAdmin && (state.user.premiumPlan === 'VIP');
+      const proBadgeHtml = isAdmin
+        ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40">🛡️ ADMIN</span>'
+        : (isVip ? '<span class="badge-vip">💎 VIP</span>' : (isPro ? '<span class="badge-pro">👑 PRO</span>' : ''));
       
       // Show main nav for logged in users
       if (mainNav && window.location.hash !== '#/login' && window.location.hash !== '#/register') {
@@ -1555,7 +1640,7 @@ const app = {
                 <span>${formatFullName(state.user.fullName)}</span>
                 ${proBadgeHtml}
               </div>
-              <div class="text-[10px] ${isAdmin ? 'text-amber-400 font-bold' : isPro ? 'text-amber-300 font-bold' : 'text-emerald-400'} font-semibold leading-tight">${isAdmin ? '👑 Administrator' : (isPro ? '👑 PRO Talaba' : 'Talaba')}</div>
+              <div class="text-[10px] ${isAdmin ? 'text-amber-400 font-bold' : isPro ? 'text-amber-300 font-bold' : 'text-gray-400'} font-semibold leading-tight">${isAdmin ? '👑 Administrator' : (isPro ? (isVip ? '💎 VIP Talaba' : '👑 PRO Talaba') : 'Standart (Bepul)')}</div>
             </div>
           </a>
           <button onclick="app.logout()" class="p-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 transition" title="Chiqish">
