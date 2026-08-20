@@ -2104,10 +2104,6 @@ const app = {
               </div>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs flex items-center gap-2.5">
-              <span class="material-symbols-outlined text-lg shrink-0">info</span>
-              <span>Emailingizga 6 xonali maxsus kod yuboriladi. Kodni kiritib parolingizni yangilaysiz.</span>
-            </div>
 
             <button id="btn-forgot-send" onclick="app.handleForgotSend()"
               class="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs glow-button-primary transition shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2">
@@ -2217,35 +2213,7 @@ const app = {
       if (stepReset) stepReset.classList.remove('hidden');
       if (emailDisplay) emailDisplay.textContent = email;
 
-      // Standalone (mock) mode — real email yuborilmaydi, kodni UI da ko'rsatamiz
-      if (res.data && res.data.code) {
-        const otpInput = document.getElementById('forgot-otp-input');
-        if (otpInput) otpInput.value = res.data.code;
-
-        // Ko'rinadigan kod bloki qo'shamiz
-        const stepReset2 = document.getElementById('forgot-step-reset');
-        if (stepReset2) {
-          const demoBox = document.createElement('div');
-          demoBox.id = 'forgot-demo-code-box';
-          demoBox.className = 'p-3 rounded-xl bg-amber-500/10 border border-amber-400/30 text-amber-300 text-xs flex items-center gap-2.5';
-          demoBox.innerHTML = `
-            <span class="material-symbols-outlined text-[18px] shrink-0">key</span>
-            <span>Demo rejim — Email yuborilmadi. Sizning kodingiz: <strong class="font-mono text-amber-200 text-sm tracking-widest">${res.data.code}</strong></span>
-          `;
-          // Birinchi element sifatida qo'shamiz (emailDisplay dan keyin)
-          const emailBanner = stepReset2.querySelector('.bg-emerald-500\\/10');
-          if (emailBanner && emailBanner.nextSibling) {
-            stepReset2.insertBefore(demoBox, emailBanner.nextSibling);
-          } else {
-            stepReset2.prepend(demoBox);
-          }
-        }
-
-        showToast(`🔑 Demo rejim: kodingiz ${res.data.code} — maydon avtomatik to'ldirildi`, 'info');
-      } else {
-        showToast(`✉️ Kod ${email} ga yuborildi! Emailingizni tekshiring.`, 'success');
-      }
-
+      showToast(`✉️ Kod ${email} manziliga yuborildi! Emailingizni tekshiring.`, 'success');
       document.getElementById('forgot-otp-input')?.focus();
     } else {
       showToast(res?.message || 'Xatolik yuz berdi, qayta urinib ko\'ring', 'error');
