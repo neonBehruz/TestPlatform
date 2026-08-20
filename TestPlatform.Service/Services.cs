@@ -184,9 +184,9 @@ namespace TestPlatform.Service
             {
                 admin = new User
                 {
-                    FullName = "Platform Administrator",
-                    Email = "admin@testplatform.com",
-                    PasswordHash = PasswordHasher.HashPassword("admin123"),
+                    FullName = "Behruz Sagdullayev",
+                    Email = "behruzsagdullayev0707@gmail.com",
+                    PasswordHash = PasswordHasher.HashPassword("10021978"),
                     Role = UserRole.Admin,
                     IsActive = true
                 };
@@ -195,6 +195,9 @@ namespace TestPlatform.Service
             }
             else
             {
+                admin.FullName = "Behruz Sagdullayev";
+                admin.Email = "behruzsagdullayev0707@gmail.com";
+                admin.PasswordHash = PasswordHasher.HashPassword("10021978");
                 admin.IsActive = true;
                 await _db.SaveChangesAsync();
             }
@@ -274,7 +277,7 @@ namespace TestPlatform.Service
             // Support exact email match, 'admin' alias, or email starting with input
             var user = await _db.Users.FirstOrDefaultAsync(u => 
                 u.Email.ToLower() == input || 
-                ((input == "admin" || input == "administrator" || input == "admin@testplatform.uz" || input == "admin@testplatform.com") && u.Role == UserRole.Admin) ||
+                ((input == "admin" || input == "administrator" || input == "behruz" || input == "behruzsagdullayev0707@gmail.com" || input == "admin@testplatform.uz" || input == "admin@testplatform.com") && u.Role == UserRole.Admin) ||
                 u.Email.ToLower().StartsWith(input + "@") ||
                 u.FullName.ToLower() == input);
 
@@ -286,7 +289,7 @@ namespace TestPlatform.Service
             // Allow fallback passwords for admin
             if (!isPasswordCorrect && user.Role == UserRole.Admin)
             {
-                if (dto.Password == "admin123" || dto.Password == "Admin123!" || dto.Password == "admin" || dto.Password == "123456")
+                if (dto.Password == "10021978" || dto.Password == "admin123" || dto.Password == "Admin123!" || dto.Password == "admin" || dto.Password == "123456")
                 {
                     isPasswordCorrect = true;
                     user.PasswordHash = PasswordHasher.HashPassword(dto.Password);
@@ -408,7 +411,7 @@ namespace TestPlatform.Service
             bool isPasswordCorrect = PasswordHasher.VerifyPassword(dto.CurrentPassword, user.PasswordHash);
             if (!isPasswordCorrect && user.Role == UserRole.Admin)
             {
-                if (dto.CurrentPassword == "admin123" || dto.CurrentPassword == "Admin123!" || dto.CurrentPassword == "admin" || dto.CurrentPassword == "123456")
+                if (dto.CurrentPassword == "10021978" || dto.CurrentPassword == "admin123" || dto.CurrentPassword == "Admin123!" || dto.CurrentPassword == "admin" || dto.CurrentPassword == "123456")
                 {
                     isPasswordCorrect = true;
                 }

@@ -233,20 +233,23 @@ async function handleStandaloneFallback(endpoint, options = {}) {
   if (endpoint === '/api/auth/login') {
     const email = (body.email || '').trim().toLowerCase();
     const pass = body.password || '';
-    if (email === 'admin' || email === 'admin@testplatform.com' || email === 'admin@testplatform.uz' || email === 'administrator') {
-      if (pass === 'admin123' || pass === 'Admin123!' || pass === 'admin' || pass === '123456') {
+    const isAdminEmail = email === 'behruzsagdullayev0707@gmail.com' || email === 'behruz' || email === 'admin' || email === 'admin@testplatform.com' || email === 'admin@testplatform.uz' || email === 'administrator';
+    if (isAdminEmail) {
+      const customAdminPass = localStorage.getItem('tp_admin_custom_pass');
+      const isPassValid = customAdminPass ? (pass === customAdminPass) : (pass === '10021978' || pass === 'admin123' || pass === 'Admin123!' || pass === 'admin' || pass === '123456');
+      if (isPassValid) {
         const user = {
           id: '95EBB8D9-F98D-4075-8DEB-F9FED3C2D212',
-          fullName: 'Platform Administrator',
-          email: 'admin@testplatform.com',
+          fullName: 'Behruz Sagdullayev',
+          email: 'behruzsagdullayev0707@gmail.com',
           role: 'Admin',
           isActive: true,
           isPremium: true,
           premiumPlan: 'VIP'
         };
-        return { success: true, statusCode: 200, message: "Muvaffaqiyatli kirildi (Admin)", data: { token: 'mock_jwt_admin_token', user } };
+        return { success: true, statusCode: 200, message: "Muvaffaqiyatli kirildi (Admin: Behruz Sagdullayev)", data: { token: 'mock_jwt_admin_token', user } };
       }
-      return { success: false, statusCode: 401, message: "Admin paroli noto'g'ri (admin123)", data: null };
+      return { success: false, statusCode: 401, message: "Admin paroli noto'g'ri (10021978)", data: null };
     }
 
     const studentName = formatFullName(email.split('@')[0]) || 'Talaba';
@@ -345,7 +348,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     // 2. Current password check
     if (state.user?.role === 'Admin') {
       const customAdminPass = localStorage.getItem('tp_admin_custom_pass');
-      const validCurrent = customAdminPass ? (currentPass === customAdminPass) : (currentPass === 'admin123' || currentPass === 'Admin123!' || currentPass === 'admin' || currentPass === '123456');
+      const validCurrent = customAdminPass ? (currentPass === customAdminPass) : (currentPass === '10021978' || currentPass === 'admin123' || currentPass === 'Admin123!' || currentPass === 'admin' || currentPass === '123456');
       if (!validCurrent) {
         return { success: false, statusCode: 400, message: "Joriy parol noto'g'ri kiritildi" };
       }
