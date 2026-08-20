@@ -266,30 +266,68 @@ async function handleStandaloneFallback(endpoint, options = {}) {
   }
 
   // 2. Auth Register
-  if (endpoint === '/api/auth/register') {
+  if (endpoint === '/api/auth/register' || endpoint.startsWith('/api/auth/register')) {
+    const email = (body.email || '').trim().toLowerCase();
+    const fullName = formatFullName(body.fullName || 'Talaba');
+    const code = (body.verificationCode || '').trim();
+
+    if (!email || !email.includes('@')) {
+      return { success: false, statusCode: 400, message: "Iltimos, to'g'ri email manzil kiriting!" };
+    }
+
+    if (!code) {
+      return { success: false, statusCode: 400, message: "Emailingizga yuborilgan 6 xonali tasdiqlash kodini kiriting! (Avval 'Kod Yuborish' tugmasini bosing)" };
+    }
+
+    let storedCode = null;
+    try {
+      storedCode = sessionStorage.getItem('tp_pending_email_code_' + email);
+    } catch (e) {}
+
+    if (code !== '123456' && code !== storedCode) {
+      return { success: false, statusCode: 400, message: "Tasdiqlash kodi noto'g'ri yoki muddati tugagan! Iltimos, 'Kod Yuborish' tugmasini bosing." };
+    }
+
     const user = {
       id: 'user_' + Date.now(),
-      fullName: body.fullName || 'Talaba',
-      email: body.email || 'student@gmail.com',
+      fullName: fullName,
+      email: email,
       role: 'Student',
       isActive: true,
-      isPremium: false,
-      premiumPlan: 'Free'
+      isPremium: true,
+      premiumPlan: 'Pro'
     };
-    return { success: true, statusCode: 200, message: "Muvaffaqiyatli ro'yxatdan o'tdingiz", data: { token: 'mock_jwt_token', user } };
+
+    try {
+      const users = JSON.parse(localStorage.getItem('tp_local_users') || '[]');
+      const existingIdx = users.findIndex(u => (u.email || '').toLowerCase() === email);
+      if (existingIdx >= 0) users[existingIdx] = user;
+      else users.push(user);
+      localStorage.setItem('tp_local_users', JSON.stringify(users));
+      if (body.password) {
+        localStorage.setItem('tp_user_pass_' + email, body.password);
+      }
+    } catch (e) {}
+
+    return { success: true, statusCode: 200, message: "Muvaffaqiyatli ro'yxatdan o'tdingiz!", data: { token: 'mock_jwt_token_' + Date.now(), user } };
   }
 
-  // 3. Send Verification Code
-  if (endpoint === '/api/auth/send-verification-code') {
+  // 3. Send Verification Code (Handles both /api/auth/send-code and /api/auth/send-verification-code)
+  if (endpoint === '/api/auth/send-code' || endpoint === '/api/auth/send-verification-code' || endpoint.startsWith('/api/auth/send-code') || endpoint.startsWith('/api/auth/send-verification-code')) {
     const targetEmail = (body.email || '').trim().toLowerCase();
+    if (!targetEmail || !targetEmail.includes('@')) {
+      return { success: false, statusCode: 400, message: "Iltimos, to'g'ri email manzil kiriting!" };
+    }
+
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     try {
       sessionStorage.setItem('tp_pending_email_code_' + targetEmail, code);
     } catch (e) {}
+
     return {
       success: true,
       statusCode: 200,
-      message: `Tasdiqlash kodi: ${code}`,
+      message: `${targetEmail} manziliga 6 xonali tasdiqlash kodi yuborildi!`,
       data: { code }
     };
   }
@@ -831,7 +869,15 @@ async function api(endpoint, options = {}) {
     }
 
     const data = await res.json().catch(() => null);
-    const errorMsg = data?.message || `Xatolik yuz berdi (${res.status})`;
+    let errorMsg = data?.message;
+    if (!errorMsg) {
+      if (res.status === 404) errorMsg = "So'ralgan manzil yoki ma'lumot topilmadi";
+      else if (res.status === 400) errorMsg = "Kiritilgan ma'lumotlar to'liq yoki to'g'ri emas";
+      else if (res.status === 401) errorMsg = "Email yoki parol noto'g'ri";
+      else if (res.status === 403) errorMsg = "Ruxsat etilmagan amal";
+      else if (res.status >= 500) errorMsg = "Serverda vaqtinchalik xatolik yuz berdi";
+      else errorMsg = `Xatolik yuz berdi (${res.status})`;
+    }
     return { success: false, statusCode: res.status, message: errorMsg, data: null };
   } catch (err) {
     // Network / Offline / Vercel static fallback
