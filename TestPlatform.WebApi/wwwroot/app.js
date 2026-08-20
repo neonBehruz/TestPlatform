@@ -2217,12 +2217,41 @@ const app = {
       if (stepReset) stepReset.classList.remove('hidden');
       if (emailDisplay) emailDisplay.textContent = email;
 
-      showToast(`✉️ Kod ${email} ga yuborildi! Emailingizni tekshiring.`, 'success');
+      // Standalone (mock) mode — real email yuborilmaydi, kodni UI da ko'rsatamiz
+      if (res.data && res.data.code) {
+        const otpInput = document.getElementById('forgot-otp-input');
+        if (otpInput) otpInput.value = res.data.code;
+
+        // Ko'rinadigan kod bloki qo'shamiz
+        const stepReset2 = document.getElementById('forgot-step-reset');
+        if (stepReset2) {
+          const demoBox = document.createElement('div');
+          demoBox.id = 'forgot-demo-code-box';
+          demoBox.className = 'p-3 rounded-xl bg-amber-500/10 border border-amber-400/30 text-amber-300 text-xs flex items-center gap-2.5';
+          demoBox.innerHTML = `
+            <span class="material-symbols-outlined text-[18px] shrink-0">key</span>
+            <span>Demo rejim — Email yuborilmadi. Sizning kodingiz: <strong class="font-mono text-amber-200 text-sm tracking-widest">${res.data.code}</strong></span>
+          `;
+          // Birinchi element sifatida qo'shamiz (emailDisplay dan keyin)
+          const emailBanner = stepReset2.querySelector('.bg-emerald-500\\/10');
+          if (emailBanner && emailBanner.nextSibling) {
+            stepReset2.insertBefore(demoBox, emailBanner.nextSibling);
+          } else {
+            stepReset2.prepend(demoBox);
+          }
+        }
+
+        showToast(`🔑 Demo rejim: kodingiz ${res.data.code} — maydon avtomatik to'ldirildi`, 'info');
+      } else {
+        showToast(`✉️ Kod ${email} ga yuborildi! Emailingizni tekshiring.`, 'success');
+      }
+
       document.getElementById('forgot-otp-input')?.focus();
     } else {
       showToast(res?.message || 'Xatolik yuz berdi, qayta urinib ko\'ring', 'error');
     }
   },
+
 
   async handleForgotReset() {
     const email = (sessionStorage.getItem('tp_reset_email') || document.getElementById('forgot-email-input')?.value || '').trim().toLowerCase();
