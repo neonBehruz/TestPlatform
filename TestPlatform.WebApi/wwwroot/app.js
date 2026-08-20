@@ -17,9 +17,7 @@ const state = {
   quizAnswers: {},
   quizTimerInterval: null,
   quizTimeRemainingSeconds: 0,
-  quizStartedAt: null,
-  aiDrawerOpen: false,
-  aiChatHistory: []
+  quizStartedAt: null
 };
 
 // Storage Helpers:
@@ -503,109 +501,6 @@ const app = {
     } else {
       m.classList.toggle('hidden');
     }
-  },
-
-  toggleAiDrawer(forceState) {
-    const drawer = document.getElementById('ai-chat-drawer');
-    if (!drawer) return;
-    const isClosed = drawer.classList.contains('translate-x-full');
-    const shouldOpen = forceState !== undefined ? forceState : isClosed;
-    if (shouldOpen) {
-      drawer.classList.remove('translate-x-full');
-      setTimeout(() => {
-        const inp = document.getElementById('ai-chat-input');
-        if (inp) inp.focus();
-      }, 300);
-    } else {
-      drawer.classList.add('translate-x-full');
-    }
-  },
-
-  clearAiChat() {
-    const messages = document.getElementById('ai-chat-messages');
-    if (messages) {
-      messages.innerHTML = `
-        <div class="flex items-start gap-2.5">
-          <div class="w-7 h-7 rounded-xl bg-purple-600/30 text-purple-300 flex items-center justify-center shrink-0 mt-0.5 border border-purple-500/30">
-            <span class="material-symbols-outlined text-sm">smart_toy</span>
-          </div>
-          <div class="p-3.5 rounded-2xl rounded-tl-none bg-white/5 border border-white/10 space-y-2 max-w-[88%] leading-relaxed text-gray-200">
-            <p>Assalomu alaykum! Men <strong>Nova AI</strong> — sizning aqlli ta'lim maslahatchi va repetitoringizman. 🎓</p>
-            <p class="text-gray-400 text-[11px]">Savollarni tushunish, formulalarni eslash yoki yechish usulini bilishda menga murojaat qilishingiz mumkin.</p>
-          </div>
-        </div>
-      `;
-      showToast('AI suhbat tarixi tozalandi', 'info');
-    }
-  },
-
-  sendQuickAiPrompt(text) {
-    const inp = document.getElementById('ai-chat-input');
-    if (inp) {
-      inp.value = text;
-      this.handleAiFormSubmit(new Event('submit'));
-    }
-  },
-
-  async handleAiFormSubmit(e) {
-    if (e && e.preventDefault) e.preventDefault();
-    const inp = document.getElementById('ai-chat-input');
-    const messages = document.getElementById('ai-chat-messages');
-    if (!inp || !messages) return;
-    const text = inp.value.trim();
-    if (!text) return;
-    inp.value = '';
-
-    // Append user message
-    const userMsg = document.createElement('div');
-    userMsg.className = 'flex items-start justify-end gap-2.5';
-    userMsg.innerHTML = `
-      <div class="p-3 rounded-2xl rounded-tr-none bg-purple-600/30 border border-purple-500/30 text-white text-xs max-w-[85%] leading-relaxed">
-        ${this.escapeHtml(text)}
-      </div>
-      <div class="w-7 h-7 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 text-xs font-bold mt-0.5">
-        ${(state.user?.fullName || 'U').charAt(0).toUpperCase()}
-      </div>
-    `;
-    messages.appendChild(userMsg);
-    messages.scrollTop = messages.scrollHeight;
-
-    // AI loading bubble
-    const aiMsg = document.createElement('div');
-    aiMsg.className = 'flex items-start gap-2.5';
-    aiMsg.innerHTML = `
-      <div class="w-7 h-7 rounded-xl bg-purple-600/30 text-purple-300 flex items-center justify-center shrink-0 mt-0.5 border border-purple-500/30">
-        <span class="material-symbols-outlined text-sm">smart_toy</span>
-      </div>
-      <div class="p-3.5 rounded-2xl rounded-tl-none bg-white/5 border border-white/10 text-gray-200 text-xs max-w-[88%] leading-relaxed space-y-1.5">
-        <div class="flex items-center gap-1.5 text-purple-400 font-semibold text-[11px]">
-          <span class="material-symbols-outlined text-[14px] animate-spin">sync</span> Nova AI o'ylamoqda...
-        </div>
-      </div>
-    `;
-    messages.appendChild(aiMsg);
-    messages.scrollTop = messages.scrollHeight;
-
-    setTimeout(() => {
-      let reply = "Savolingiz bo'yicha maslahat: Mavzuga doir asosiy formulalarni eslang, har bir variantni tahlil qiling va noto'g'ri javoblarni birma-bir chiqarib tashlang. Agar biror qoida yoki formula bo'yicha yordam kerak bo'lsa, aniq mavzusini yozing!";
-      if (text.includes('formula') || text.includes('qoida')) {
-        reply = "Har qanday masalada formulani qo'llashdan oldin berilgan ma'lumotlarni tartiblab oling. Qoidaning mohiyatini tushunsangiz, testni tez va aniq yechasiz!";
-      } else if (text.includes('maslahat') || text.includes('oson')) {
-        reply = "Test topshirishda vaqtni to'g'ri taqsimlang: avval o'zingiz aniq bilgan savollarni belgilang, qiyinroq tuyulgan savollarni esa oxiriga qoldiring. Hech bir savolni javobsiz qoldirmang!";
-      }
-      aiMsg.querySelector('div:last-child').innerHTML = `
-        <p>${reply}</p>
-        <div class="text-[10px] text-purple-400/80 pt-1 flex items-center gap-1">
-          <span class="material-symbols-outlined text-[12px]">psychology</span> Nova Sokratik Mentor
-        </div>
-      `;
-      messages.scrollTop = messages.scrollHeight;
-    }, 600);
-  },
-
-  askAiForCurrentQuestionHint() {
-    this.toggleAiDrawer(true);
-    this.sendQuickAiPrompt("Hozirgi savolni tushunish va yechish usuli bo'yicha yo'l-yo'riq ber.");
   },
 
   // Helper for password eye toggle
@@ -1832,31 +1727,6 @@ const app = {
               <span class="text-xs font-semibold text-blue-400 uppercase tracking-wider">Savol ${qIndex + 1} / ${totalQ}</span>
               <span class="px-2.5 py-1 rounded-lg bg-white/5 text-xs text-gray-300 font-medium">${q.points || 1} ball</span>
             </div>
-
-            <!-- AI Socratic Hint Button -->
-            <button onclick="app.askAiForHint()" class="px-3.5 py-1.5 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 text-xs font-bold transition flex items-center gap-1.5 shadow-sm active:scale-95 group" title="Ushbu savolni yechish bo'yicha yo'l-yo'riq va qoidalarni ko'rish">
-              <span class="material-symbols-outlined text-[16px] text-purple-400 group-hover:rotate-12 transition-transform">psychology</span>
-              <span>💡 AI Maslahat</span>
-            </button>
-          </div>
-
-          <!-- Collapsible Question AI Hint Box -->
-          <div id="quiz-question-ai-hint-box" class="hidden p-4 rounded-2xl bg-purple-950/30 border border-purple-500/30 space-y-2 animate-fadeIn">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-purple-300 flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-base text-purple-400">auto_awesome</span> Nova AI Maslahati (Sokratik Yo'llanma):
-              </span>
-              <button onclick="document.getElementById('quiz-question-ai-hint-box').classList.add('hidden')" class="text-gray-400 hover:text-white text-xs">Yopish &times;</button>
-            </div>
-            <div id="quiz-ai-hint-content" class="text-xs text-gray-200 leading-relaxed">
-              <!-- Dynamic AI Hint -->
-            </div>
-            <div class="pt-1.5 border-t border-purple-500/20 flex flex-wrap items-center justify-between gap-2 text-[11px] text-purple-400">
-              <span>🛡️ AI to'g'ridan-to'g'ri javobni bermaydi, faqat to'g'ri fikrlashga yo'naltiradi</span>
-              <button onclick="app.toggleAiDrawer(true)" class="hover:underline font-bold flex items-center gap-1 text-purple-300">
-                Batafsil AI suhbatga o'tish &rarr;
-              </button>
-            </div>
           </div>
 
           <!-- Question Text -->
@@ -1906,14 +1776,6 @@ const app = {
 
       </div>
     `;
-
-    // Sync AI Floating Drawer Context
-    const aiContext = document.getElementById('ai-active-question-context');
-    const aiContextQ = document.getElementById('ai-context-q-text');
-    if (aiContext && aiContextQ) {
-      aiContext.classList.remove('hidden');
-      aiContextQ.innerText = `Savol #${qIndex + 1}: ${q.text}`;
-    }
 
     this.updateTimerDisplay();
   },

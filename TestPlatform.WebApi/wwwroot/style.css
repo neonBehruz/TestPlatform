@@ -826,36 +826,6 @@ button:active, a.btn:active, .action-btn:active {
   }
 }
 
-/* Nova AI Assistant Styles */
-#ai-chat-drawer {
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.delay-100 {
-  animation-delay: 0.15s;
-}
-
-.delay-200 {
-  animation-delay: 0.3s;
-}
-
-#ai-chat-messages::-webkit-scrollbar {
-  width: 5px;
-}
-
-#ai-chat-messages::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-#ai-chat-messages::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 9999px;
-}
-
-#ai-chat-messages::-webkit-scrollbar-thumb:hover {
-  background: rgba(168, 85, 247, 0.5);
-}
-
 /* ==========================================================================
    PRO & VIP SUBSCRIPTION STYLES
    ========================================================================== */
@@ -1128,23 +1098,6 @@ body.modal-open {
 
   .cert-meta-row strong {
     justify-content: center !important;
-  }
-
-  /* Floating Nova AI button on mobile */
-  #ai-floating-container {
-    bottom: 1rem !important;
-    right: 1rem !important;
-  }
-
-  #ai-floating-btn {
-    padding: 0.6rem 0.9rem !important;
-    font-size: 11px !important;
-    border-radius: 1rem !important;
-  }
-
-  /* Mobile Drawer full width */
-  #ai-chat-drawer {
-    width: 100% !important;
   }
 
   /* Modal on mobile */
