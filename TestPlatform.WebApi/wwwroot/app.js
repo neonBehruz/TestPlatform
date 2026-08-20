@@ -278,7 +278,74 @@ async function handleStandaloneFallback(endpoint, options = {}) {
 
   // 3. Send Verification Code
   if (endpoint === '/api/auth/send-verification-code') {
-    return { success: true, statusCode: 200, message: "Tasdiqlash kodi: 123456", data: null };
+    const targetEmail = (body.email || '').trim().toLowerCase();
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    try {
+      sessionStorage.setItem('tp_pending_email_code_' + targetEmail, code);
+    } catch (e) {}
+    return {
+      success: true,
+      statusCode: 200,
+      message: `Tasdiqlash kodi: ${code}`,
+      data: { code }
+    };
+  }
+
+  // 3.1. Profile Update
+  if (endpoint.startsWith('/api/auth/profile/')) {
+    const currentEmail = (state.user?.email || '').toLowerCase();
+    const newEmail = (body.email || '').trim().toLowerCase();
+    const newName = body.fullName ? formatFullName(body.fullName.trim()) : (state.user?.fullName || 'Foydalanuvchi');
+
+    if (newEmail && newEmail !== currentEmail) {
+      const code = (body.verificationCode || '').trim();
+      let storedCode = null;
+      try {
+        storedCode = sessionStorage.getItem('tp_pending_email_code_' + newEmail);
+      } catch (e) {}
+
+      if (!code) {
+        return { success: false, statusCode: 400, message: "Yangi emailga yuborilgan 6 xonali tasdiqlash kodini kiriting" };
+      }
+      if (code !== '123456' && code !== storedCode) {
+        return { success: false, statusCode: 400, message: "Tasdiqlash kodi noto'g'ri" };
+      }
+    }
+
+    const updatedUser = {
+      ...(state.user || {}),
+      fullName: newName,
+      email: newEmail || currentEmail
+    };
+
+    updateUserSession(updatedUser);
+    return { success: true, statusCode: 200, message: "Ma'lumotlaringiz muvaffaqiyatli saqlandi!", data: updatedUser };
+  }
+
+  // 3.2. Change Password
+  if (endpoint.startsWith('/api/auth/change-password/')) {
+    const currentPass = body.currentPassword || '';
+    const newPass = body.newPassword || '';
+
+    if (state.user?.role === 'Admin') {
+      const customAdminPass = localStorage.getItem('tp_admin_custom_pass');
+      const validCurrent = customAdminPass ? (currentPass === customAdminPass) : (currentPass === 'admin123' || currentPass === 'Admin123!' || currentPass === 'admin' || currentPass === '123456');
+      if (!validCurrent) {
+        return { success: false, statusCode: 400, message: "Joriy parol noto'g'ri kiritildi" };
+      }
+      localStorage.setItem('tp_admin_custom_pass', newPass);
+    }
+    return { success: true, statusCode: 200, message: "Parol muvaffaqiyatli o'zgartirildi" };
+  }
+
+  // 3.3. Profile Attempts
+  if (endpoint === '/api/profile/attempts') {
+    try {
+      const attempts = JSON.parse(localStorage.getItem('tp_local_attempts') || '[]');
+      return { success: true, statusCode: 200, data: attempts };
+    } catch (e) {
+      return { success: true, statusCode: 200, data: [] };
+    }
   }
 
   // 4. Subjects
@@ -2997,7 +3064,24 @@ const app = {
 
               <div>
                 <label class="block text-xs font-semibold text-gray-300 mb-1">Email / Gmail Manzili</label>
-                <input type="email" id="prof-email" value="${state.user.email || ''}" required class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-blue-500" />
+                <input type="email" id="prof-email" value="${state.user.email || ''}" oninput="app.checkProfileEmailChanged()" required class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-blue-500" />
+              </div>
+
+              <!-- Email Verification Code Box (Visible only when email is changed) -->
+              <div id="prof-email-verify-box" class="hidden p-3.5 rounded-2xl bg-blue-950/40 border border-blue-500/30 space-y-2.5 animate-fadeIn">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-bold text-blue-300 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">verified_user</span> Yangi emailni tasdiqlash:
+                  </span>
+                  <button type="button" id="btn-send-profile-code" onclick="app.sendProfileEmailCode()" class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold transition flex items-center gap-1 shadow-sm">
+                    <span class="material-symbols-outlined text-[14px]">send</span> Kod Olish
+                  </button>
+                </div>
+                <div class="relative">
+                  <span class="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-[16px]">key</span>
+                  <input type="text" id="prof-verify-code" maxlength="6" placeholder="6 xonali kod (masalan: 123456)" class="w-full pl-9 pr-3 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs tracking-widest font-mono focus:outline-none focus:border-blue-500" />
+                </div>
+                <p class="text-[10px] text-gray-400">Yangi kiritilgan Gmail/Email manzilingizga 6 xonali tasdiqlash kodi yuboriladi.</p>
               </div>
 
               <button type="submit" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs glow-button-primary transition">
@@ -3058,14 +3142,94 @@ const app = {
     }
   },
 
+  checkProfileEmailChanged() {
+    const emailInput = document.getElementById('prof-email');
+    const verifyBox = document.getElementById('prof-email-verify-box');
+    if (!emailInput || !verifyBox) return;
+
+    const currentEmail = (state.user?.email || '').trim().toLowerCase();
+    const newEmail = emailInput.value.trim().toLowerCase();
+
+    if (newEmail && newEmail !== currentEmail) {
+      verifyBox.classList.remove('hidden');
+    } else {
+      verifyBox.classList.add('hidden');
+    }
+  },
+
+  async sendProfileEmailCode() {
+    const emailInput = document.getElementById('prof-email');
+    if (!emailInput) return;
+    const email = emailInput.value.trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      showToast('Iltimos, to\'g\'ri Gmail/Email manzil kiriting!', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-send-profile-code');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="material-symbols-outlined text-[14px] animate-spin">sync</span> Yuborilmoqda...`;
+    }
+
+    const res = await api('/api/auth/send-verification-code', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+
+    if (res.success) {
+      showToast(res.message || `${email} manziliga 6 xonali tasdiqlash kodi yuborildi!`, 'success');
+      const codeBox = document.getElementById('prof-email-verify-box');
+      if (codeBox) codeBox.classList.remove('hidden');
+      const codeInp = document.getElementById('prof-verify-code');
+      if (codeInp) codeInp.focus();
+
+      let seconds = 60;
+      const timer = setInterval(() => {
+        seconds--;
+        if (btn) btn.innerText = `${seconds}s...`;
+        if (seconds <= 0) {
+          clearInterval(timer);
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span class="material-symbols-outlined text-[14px]">send</span> Kod Olish`;
+          }
+        }
+      }, 1000);
+    } else {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span class="material-symbols-outlined text-[14px]">send</span> Kod Olish`;
+      }
+      showToast(res.message || 'Kodni yuborishda xatolik', 'error');
+    }
+  },
+
   async handleUpdateProfileSubmit(e) {
     e.preventDefault();
     const fullName = document.getElementById('prof-fullname').value.trim();
     const email = document.getElementById('prof-email').value.trim();
+    const currentEmail = (state.user?.email || '').trim().toLowerCase();
+    const isEmailChanged = email.toLowerCase() !== currentEmail;
 
-    const res = await api(`/api/auth/profile/${state.user.id}`, {
+    let verificationCode = '';
+    if (isEmailChanged) {
+      const codeInp = document.getElementById('prof-verify-code');
+      verificationCode = codeInp ? codeInp.value.trim() : '';
+
+      const verifyBox = document.getElementById('prof-email-verify-box');
+      if (!verificationCode) {
+        if (verifyBox) verifyBox.classList.remove('hidden');
+        showToast('Yangi emailni tasdiqlash uchun "Kod Olish" tugmasini bosing va kodni kiriting!', 'info');
+        this.sendProfileEmailCode();
+        return;
+      }
+    }
+
+    const userId = state.user.id || '95EBB8D9-F98D-4075-8DEB-F9FED3C2D212';
+    const res = await api(`/api/auth/profile/${userId}`, {
       method: 'PUT',
-      body: JSON.stringify({ fullName, email })
+      body: JSON.stringify({ fullName, email, verificationCode })
     });
 
     if (res.success && res.data) {
@@ -3089,7 +3253,8 @@ const app = {
       return;
     }
 
-    const res = await api(`/api/auth/change-password/${state.user.id}`, {
+    const userId = state.user.id || '95EBB8D9-F98D-4075-8DEB-F9FED3C2D212';
+    const res = await api(`/api/auth/change-password/${userId}`, {
       method: 'PUT',
       body: JSON.stringify({ currentPassword, newPassword })
     });
