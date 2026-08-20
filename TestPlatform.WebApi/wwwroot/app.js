@@ -628,6 +628,78 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     };
   }
 
+  // 14. Support & Student Appeals
+  if (endpoint === '/api/support/submit') {
+    const ticket = {
+      id: 'ticket_' + Date.now(),
+      studentId: state.user?.id || 'guest',
+      studentName: body.fullName || state.user?.fullName || 'Foydalanuvchi',
+      studentEmail: body.email || state.user?.email || 'student@example.com',
+      contactInfo: body.contactInfo || '',
+      category: body.category || 'Umumiy',
+      subject: body.subject || 'Murojaat',
+      message: body.message || '',
+      status: 'Yangi',
+      createdAt: new Date().toISOString()
+    };
+    try {
+      const tickets = JSON.parse(localStorage.getItem('tp_support_tickets') || '[]');
+      tickets.unshift(ticket);
+      localStorage.setItem('tp_support_tickets', JSON.stringify(tickets));
+    } catch (e) {}
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Murojaatingiz muvaffaqiyatli yuborildi! Administrator tez orada ko'rib chiqadi.",
+      data: ticket
+    };
+  }
+
+  if (endpoint === '/api/support/my') {
+    try {
+      const tickets = JSON.parse(localStorage.getItem('tp_support_tickets') || '[]');
+      const userEmail = (state.user?.email || '').toLowerCase();
+      const myTickets = tickets.filter(t => (t.studentEmail || '').toLowerCase() === userEmail || t.studentId === state.user?.id);
+      return { success: true, statusCode: 200, data: myTickets };
+    } catch (e) {
+      return { success: true, statusCode: 200, data: [] };
+    }
+  }
+
+  if (endpoint === '/api/support/all') {
+    try {
+      const tickets = JSON.parse(localStorage.getItem('tp_support_tickets') || '[]');
+      return { success: true, statusCode: 200, data: tickets };
+    } catch (e) {
+      return { success: true, statusCode: 200, data: [] };
+    }
+  }
+
+  if (endpoint.startsWith('/api/support/') && endpoint.endsWith('/status')) {
+    const ticketId = endpoint.split('/')[3];
+    try {
+      const tickets = JSON.parse(localStorage.getItem('tp_support_tickets') || '[]');
+      const found = tickets.find(t => t.id === ticketId);
+      if (found) {
+        found.status = body.status || 'Hal qilindi';
+        localStorage.setItem('tp_support_tickets', JSON.stringify(tickets));
+        return { success: true, statusCode: 200, message: "Holat yangilandi", data: found };
+      }
+    } catch (e) {}
+    return { success: true, statusCode: 200, message: "Holat yangilandi" };
+  }
+
+  if (endpoint.startsWith('/api/support/') && method === 'DELETE') {
+    const ticketId = endpoint.split('/')[3];
+    try {
+      let tickets = JSON.parse(localStorage.getItem('tp_support_tickets') || '[]');
+      tickets = tickets.filter(t => t.id !== ticketId);
+      localStorage.setItem('tp_support_tickets', JSON.stringify(tickets));
+    } catch (e) {}
+    return { success: true, statusCode: 200, message: "Murojaat o'chirildi" };
+  }
+
   return null;
 }
 
@@ -862,11 +934,15 @@ const app = {
       this.renderLeaderboard();
     } else if (hash === '#/profile' || hash === '#/settings') {
       this.renderProfile();
+    } else if (hash === '#/support' || hash === '#/contact' || hash === '#/help') {
+      this.renderSupportPage();
     } else if (hash === '#/verify-cert' || hash.startsWith('#/certificate/')) {
       const certNumber = hash.startsWith('#/certificate/') ? hash.split('/')[2] : '';
       this.renderCertificate(certNumber);
     } else if (hash === '#/admin' || hash === '#/admin/dashboard') {
       this.renderAdminDashboard();
+    } else if (hash === '#/admin/support') {
+      this.renderAdminSupport();
     } else if (hash === '#/admin/tests') {
       this.renderAdminTests();
     } else if (hash === '#/admin/add-test') {
@@ -935,6 +1011,9 @@ const app = {
       if (el) { el.classList.add(...activeClasses); el.classList.remove('text-gray-300'); }
     } else if (hash.startsWith('#/verify-cert') || hash.startsWith('#/certificate')) {
       const el = document.getElementById('nav-verify');
+      if (el) { el.classList.add(...activeClasses); el.classList.remove('text-gray-300'); }
+    } else if (hash.startsWith('#/support') || hash.startsWith('#/contact')) {
+      const el = document.getElementById('nav-support');
       if (el) { el.classList.add(...activeClasses); el.classList.remove('text-gray-300'); }
     } else if (hash.startsWith('#/admin')) {
       const el = document.getElementById('nav-admin');
@@ -2287,6 +2366,16 @@ const app = {
               `;
             }).join('')}
           </div>
+
+          <!-- Question Issue Report Link -->
+          <div class="pt-3 border-t border-white/5 flex items-center justify-between text-[11px] text-gray-400">
+            <span class="flex items-center gap-1 text-gray-500">
+              <span class="material-symbols-outlined text-[14px]">info</span> To'g'ri javobni tanlab keyingi savolga o'ting
+            </span>
+            <button type="button" onclick="app.openSupportModal('Savoldagi xatolik', '«${this.escapeJs(test.title)}» - Savol #${qIndex + 1}', 'Savol matni: ${this.escapeJs(q.text.slice(0, 100))}...\\n\\nXatolik haqida:')" class="text-blue-400/80 hover:text-blue-300 hover:underline flex items-center gap-1 transition">
+              <span class="material-symbols-outlined text-[14px]">flag</span> Savolda xatolik bormi? Adminga xabar bering
+            </button>
+          </div>
         </div>
 
         <!-- Navigation Buttons -->
@@ -3430,6 +3519,7 @@ const app = {
       { id: 'bulk-import', label: '🚀 JSON Import', icon: 'upload_file', href: '#/admin/bulk-import' },
       { id: 'subjects', label: 'Fanlar', icon: 'menu_book', href: '#/admin/subjects' },
       { id: 'users', label: 'Foydalanuvchilar', icon: 'group', href: '#/admin/users' },
+      { id: 'support', label: '📬 Murojaatlar', icon: 'support_agent', href: '#/admin/support' },
       { id: 'audit-logs', label: 'Audit Logs', icon: 'history', href: '#/admin/audit-logs' }
     ];
 
@@ -3503,8 +3593,8 @@ const app = {
               <a href="#/tests" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs glow-button-primary transition flex items-center gap-2 shadow-lg shadow-blue-600/30">
                 <span class="material-symbols-outlined text-[17px]">quiz</span> Testlar Katalogi
               </a>
-              <button onclick="app.toggleAiDrawer(true)" class="px-4 py-2.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 font-bold text-xs transition flex items-center gap-2 backdrop-blur-md">
-                <span class="material-symbols-outlined text-[17px]">smart_toy</span> Nova AI Maslahat
+              <button onclick="app.openSupportModal()" class="px-4 py-2.5 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 font-bold text-xs transition flex items-center gap-2 backdrop-blur-md">
+                <span class="material-symbols-outlined text-[17px]">support_agent</span> Adminga Murojaat
               </button>
             </div>
           </div>
@@ -3593,22 +3683,32 @@ const app = {
               </div>
             </div>
 
-            <!-- AI Mentor Daily Study Tip -->
-            <div class="p-5 rounded-2xl bg-gradient-to-br from-purple-900/30 to-indigo-950/40 border border-purple-500/30 backdrop-blur-md flex items-start gap-4">
-              <div class="w-10 h-10 rounded-2xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-purple-600/30">
-                <span class="material-symbols-outlined text-xl">psychology</span>
-              </div>
-              <div class="flex-1 space-y-1.5">
-                <div class="flex items-center justify-between">
-                  <h4 class="text-xs font-bold font-heading text-purple-200">Nova AI: Bugungi Mashg'ulot Maslahati</h4>
-                  <span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[9px] font-bold">Tavsiya</span>
+            <!-- Support & Contact Admin Card -->
+            <div class="p-6 rounded-3xl bg-gradient-to-br from-blue-950/40 via-[#121524] to-indigo-950/30 border border-blue-500/30 backdrop-blur-xl relative overflow-hidden space-y-4 shadow-xl">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-start gap-3.5">
+                  <div class="w-12 h-12 rounded-2xl bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/10">
+                    <span class="material-symbols-outlined text-2xl">support_agent</span>
+                  </div>
+                  <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                      <h4 class="text-sm font-bold font-heading text-white">Savol yoki Qiyinchilik Bormi?</h4>
+                      <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">24/7 Yordam</span>
+                    </div>
+                    <p class="text-xs text-gray-300 leading-relaxed max-w-xl">
+                      Testlarda xatolik, to'lov yoki tushunmovchilik bo'yicha administratorga bevosita murojaat yuborishingiz mumkin.
+                    </p>
+                  </div>
                 </div>
-                <p class="text-xs text-gray-300 leading-relaxed">
-                  "Har kuni kamida bitta yangi mavzu bo'yicha test ishlab, xatolaringiz ustida ishlang. AI yordamchingiz formulalarni eslashga doim tayyor!"
-                </p>
-                <button onclick="app.sendQuickAiPrompt('Bugungi dars uchun menga qisqa va foydali maslahat ber!')" class="text-[11px] text-purple-300 hover:text-white font-semibold underline mt-1 inline-flex items-center gap-1">
-                  Maslahat olish &rarr;
-                </button>
+
+                <div class="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
+                  <button onclick="app.openSupportModal()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs glow-button-primary transition flex items-center gap-1.5 shadow-md shadow-blue-600/20">
+                    <span class="material-symbols-outlined text-[16px]">chat</span> Murojaat Yuborish
+                  </button>
+                  <a href="https://t.me/TestPlatformAdmin" target="_blank" rel="noopener noreferrer" class="px-4 py-2.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 font-bold text-xs transition flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">send</span> Telegram
+                  </a>
+                </div>
               </div>
             </div>
           </div>
@@ -7121,6 +7221,543 @@ const app = {
         </div>
       </div>
     `);
+  },
+
+  // ----------------------------------------------------
+  // VIEW: STUDENT SUPPORT & CONTACT ADMIN (MUROJAAT)
+  // ----------------------------------------------------
+  openSupportModal(prefilledCategory = 'Savol yoki tushunmovchilik', prefilledSubject = '', prefilledMessage = '') {
+    const userFullName = state.user?.fullName || '';
+    const userEmail = state.user?.email || '';
+
+    const categories = [
+      { id: 'Savol yoki tushunmovchilik', label: '📌 Savol yoki tushunmovchilik' },
+      { id: 'Savoldagi xatolik', label: '⚠️ Test / Savoldagi xatolik' },
+      { id: 'To\'lov yoki PRO obuna', label: '💳 To\'lov / PRO Obuna' },
+      { id: 'Taklif yoki fikr', label: '💡 Taklif yoki fikr' },
+      { id: 'Boshqa masala', label: '❓ Boshqa masala' }
+    ];
+
+    this.openModal(`
+      <div class="space-y-6">
+        <!-- Modal Header -->
+        <div class="flex items-center gap-3.5 pb-4 border-b border-white/10">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0">
+            <span class="material-symbols-outlined text-2xl">support_agent</span>
+          </div>
+          <div>
+            <h3 class="text-lg font-black font-heading text-white">Adminga Murojaat Qilish</h3>
+            <p class="text-xs text-gray-400">Savol, taklif yoki tushunmovchilik bo'yicha xabar qoldiring</p>
+          </div>
+        </div>
+
+        <!-- Quick Telegram Direct Banner -->
+        <div class="p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2 text-xs text-sky-200">
+            <span class="material-symbols-outlined text-sky-400 text-lg">send</span>
+            <span>Tezkor javob olish uchun Telegram orqali ham bog'lanishingiz mumkin</span>
+          </div>
+          <a href="https://t.me/TestPlatformAdmin" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black text-xs font-bold transition whitespace-nowrap shadow-sm">
+            @TestPlatformAdmin
+          </a>
+        </div>
+
+        <!-- Support Form -->
+        <form onsubmit="app.handleSupportSubmit(event)" class="space-y-4">
+          <!-- Category Select -->
+          <div>
+            <label class="block text-xs font-semibold text-gray-300 mb-1.5">Murojaat Yo'nalishi</label>
+            <select id="sup-category" required class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-blue-500">
+              ${categories.map(c => `
+                <option value="${c.id}" class="bg-[#14161f] text-white" ${c.id === prefilledCategory ? 'selected' : ''}>${c.label}</option>
+              `).join('')}
+            </select>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1">Ism va Familiyangiz</label>
+              <input type="text" id="sup-name" required value="${this.escapeHtml(userFullName)}" placeholder="Ismingizni kiriting" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1">Email / Gmail Manzil</label>
+              <input type="email" id="sup-email" required value="${this.escapeHtml(userEmail)}" placeholder="email@example.com" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-blue-500" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1">Mavzu</label>
+              <input type="text" id="sup-subject" required value="${this.escapeHtml(prefilledSubject)}" placeholder="Masalan: Testdagi savol bo'yicha" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1">Telegram yoki Telefon <span class="text-gray-500 font-normal">(ixtiyoriy)</span></label>
+              <input type="text" id="sup-contact" placeholder="@username yoki +998..." class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-blue-500" />
+            </div>
+          </div>
+
+          <!-- Message Textarea -->
+          <div>
+            <label class="block text-xs font-semibold text-gray-300 mb-1">Murojaat Matni</label>
+            <textarea id="sup-message" required rows="4" placeholder="Savol, qiyinchilik yoki taklifingizni batafsil yozing..." class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-blue-500 resize-none leading-relaxed">${this.escapeHtml(prefilledMessage)}</textarea>
+          </div>
+
+          <button type="submit" id="btn-submit-support" class="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs glow-button-primary shadow-lg shadow-blue-500/25 transition flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-[16px]">send</span>
+            <span>Murojaatni Yuborish</span>
+          </button>
+        </form>
+      </div>
+    `, 'max-w-xl');
+  },
+
+  async handleSupportSubmit(e) {
+    e.preventDefault();
+    const category = document.getElementById('sup-category')?.value || 'Umumiy';
+    const fullName = document.getElementById('sup-name')?.value.trim();
+    const email = document.getElementById('sup-email')?.value.trim();
+    const subject = document.getElementById('sup-subject')?.value.trim();
+    const contactInfo = document.getElementById('sup-contact')?.value.trim();
+    const message = document.getElementById('sup-message')?.value.trim();
+
+    if (!fullName || !email || !subject || !message) {
+      showToast('Iltimos, barcha majburiy maydonlarni to\'ldiring!', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-submit-support');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="material-symbols-outlined text-[16px] animate-spin">sync</span> Yuborilmoqda...`;
+    }
+
+    const res = await api('/api/support/submit', {
+      method: 'POST',
+      body: JSON.stringify({ category, fullName, email, subject, contactInfo, message })
+    });
+
+    if (res.success) {
+      showToast('Murojaatingiz adminga muvaffaqiyatli yetkazildi!', 'success');
+      this.closeModal();
+      if (window.location.hash === '#/support') {
+        this.renderSupportPage();
+      }
+    } else {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span class="material-symbols-outlined text-[16px]">send</span> Murojaatni Yuborish`;
+      }
+      showToast(res.message || 'Xatolik yuz berdi', 'error');
+    }
+  },
+
+  async renderSupportPage() {
+    const root = document.getElementById('app-root');
+    const isAdmin = state.user?.role === 'Admin';
+    const userFullName = state.user?.fullName || '';
+    const userEmail = state.user?.email || '';
+
+    root.innerHTML = `
+      <div class="max-w-5xl mx-auto space-y-8 animate-fadeIn pb-16">
+        
+        <!-- Top Navigation / Back -->
+        <div class="flex items-center justify-between">
+          <a href="${isAdmin ? '#/admin' : '#/dashboard'}" class="px-4 py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 font-bold text-xs border border-blue-500/30 inline-flex items-center gap-1.5 transition shadow-sm">
+            <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+            <span>⬅️ Orqaga</span>
+          </a>
+
+          ${isAdmin ? `
+            <a href="#/admin/support" class="px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-bold transition flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">inbox</span> Admin Murojaatlar Qutisi
+            </a>
+          ` : ''}
+        </div>
+
+        <!-- Support Hero Header -->
+        <div class="catalog-hero-banner rounded-3xl p-6 sm:p-8 relative overflow-hidden space-y-4">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-semibold">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span>24/7 Qo'llab-quvvatlash Markazi</span>
+          </div>
+          <h1 class="text-3xl sm:text-4xl font-black font-heading text-white tracking-tight">
+            Savol yoki Qiyinchilik Bormi? <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-300 to-indigo-400">Adminga Murojaat Qiling</span>
+          </h1>
+          <p class="text-xs sm:text-sm text-gray-300 max-w-2xl leading-relaxed">
+            Test topshirishda tushunarsiz joylar, savollardagi kamchiliklar, to'lov yoki PRO obuna masalasida yordam berishga doim tayyormiz.
+          </p>
+        </div>
+
+        <!-- 2-Column Main Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          <!-- LEFT COLUMN (2 Cols): Support Submission Form -->
+          <div class="lg:col-span-2 glass-panel p-6 sm:p-8 rounded-3xl space-y-6">
+            <div class="flex items-center justify-between pb-4 border-b border-white/10">
+              <div class="flex items-center gap-2.5">
+                <span class="material-symbols-outlined text-blue-400 text-2xl">edit_document</span>
+                <h3 class="text-base font-bold font-heading text-white">Yangi Murojaat Yuborish</h3>
+              </div>
+              <span class="text-[11px] text-gray-400">Tezkor ko'rib chiqish</span>
+            </div>
+
+            <form onsubmit="app.handleSupportSubmit(event)" class="space-y-4">
+              <div>
+                <label class="block text-xs font-semibold text-gray-300 mb-1.5">Murojaat Yo'nalishi (Kategoriya)</label>
+                <select id="sup-category" required class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-blue-500">
+                  <option value="Savol yoki tushunmovchilik" class="bg-[#14161f] text-white">📌 Savol yoki tushunmovchilik</option>
+                  <option value="Savoldagi xatolik" class="bg-[#14161f] text-white">⚠️ Test / Savoldagi xatolik haqida xabar</option>
+                  <option value="To'lov yoki PRO obuna" class="bg-[#14161f] text-white">💳 To'lov / PRO Obuna masalasi</option>
+                  <option value="Taklif yoki fikr" class="bg-[#14161f] text-white">💡 Taklif yoki takomillashtirish fikri</option>
+                  <option value="Boshqa masala" class="bg-[#14161f] text-white">❓ Boshqa masala</option>
+                </select>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-300 mb-1">Ism va Familiyangiz</label>
+                  <input type="text" id="sup-name" required value="${this.escapeHtml(userFullName)}" placeholder="Ismingizni kiriting" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-300 mb-1">Email / Gmail Manzil</label>
+                  <input type="email" id="sup-email" required value="${this.escapeHtml(userEmail)}" placeholder="email@example.com" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-blue-500" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-300 mb-1">Murojaat Mavzusi</label>
+                  <input type="text" id="sup-subject" required placeholder="Masalan: Test sertifikatini olishda qiyinchilik" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-300 mb-1">Telegram yoki Telefon <span class="text-gray-500 font-normal">(ixtiyoriy)</span></label>
+                  <input type="text" id="sup-contact" placeholder="@username yoki +998..." class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-blue-500" />
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-gray-300 mb-1">Murojaatingizni Batafsil Yozing</label>
+                <textarea id="sup-message" required rows="5" placeholder="Qanday masala yoki savol bo'yicha qiynalayotganingizni aniq yozing..." class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-blue-500 resize-none leading-relaxed"></textarea>
+              </div>
+
+              <button type="submit" id="btn-submit-support" class="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs glow-button-primary shadow-lg shadow-blue-500/25 transition flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined text-[16px]">send</span>
+                <span>Murojaatni Adminga Yuborish</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- RIGHT COLUMN (1 Col): Direct Contacts & My History -->
+          <div class="space-y-6">
+            <!-- Direct Telegram Contact Card -->
+            <div class="glass-panel p-6 rounded-3xl space-y-4 border border-sky-500/30 bg-gradient-to-br from-sky-950/20 via-[#14161f] to-[#14161f]">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-sky-500/20 text-sky-400 border border-sky-500/30 flex items-center justify-center text-2xl shrink-0">
+                  ✈️
+                </div>
+                <div>
+                  <h4 class="text-sm font-bold font-heading text-white">Tezkor Telegram Aloqa</h4>
+                  <p class="text-[11px] text-gray-400">To'g'ridan-to'g'ri admin bilan suhbat</p>
+                </div>
+              </div>
+
+              <p class="text-xs text-gray-300 leading-relaxed">
+                Shoshilinch savollar yoki to'lov masalalari bo'yicha Telegram orqali xabar qoldiring. Administratorlar 10-15 daqiqa ichida javob berishadi.
+              </p>
+
+              <a href="https://t.me/TestPlatformAdmin" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-extrabold text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-sky-500/20">
+                <span class="material-symbols-outlined text-[16px]">send</span>
+                <span>Telegram: @TestPlatformAdmin</span>
+              </a>
+            </div>
+
+            <!-- FAQ Accordion / Quick Help -->
+            <div class="glass-panel p-6 rounded-3xl space-y-3">
+              <h4 class="text-xs font-bold font-heading uppercase tracking-wider text-gray-400 mb-2">Ko'p Beriladigan Savollar (FAQ)</h4>
+              
+              <details class="p-3 rounded-xl bg-white/5 border border-white/5 group cursor-pointer">
+                <summary class="text-xs font-semibold text-gray-200 group-hover:text-blue-300 flex items-center justify-between">
+                  <span>Sertifikatni qanday yuklab olaman?</span>
+                  <span class="material-symbols-outlined text-sm">expand_more</span>
+                </summary>
+                <p class="text-[11px] text-gray-400 mt-2 leading-relaxed">
+                  Testni o'tish balidan yuqori natija bilan yakunlashingiz bilanoq Sertifikat oynasi ochiladi yoki Profil sahifangizdagi "Mening Test Tarixim" orqali istalgan vaqt yuklab olishingiz mumkin.
+                </p>
+              </details>
+
+              <details class="p-3 rounded-xl bg-white/5 border border-white/5 group cursor-pointer">
+                <summary class="text-xs font-semibold text-gray-200 group-hover:text-blue-300 flex items-center justify-between">
+                  <span>Savolda xatolik bo'lsa nima qilish kerak?</span>
+                  <span class="material-symbols-outlined text-sm">expand_more</span>
+                </summary>
+                <p class="text-[11px] text-gray-400 mt-2 leading-relaxed">
+                  Test yechish paytida har bir savol ostidagi "Savolda xatolik bormi? Adminga xabar bering" tugmasini bosib darhol shikoyat qoldirishingiz mumkin.
+                </p>
+              </details>
+
+              <details class="p-3 rounded-xl bg-white/5 border border-white/5 group cursor-pointer">
+                <summary class="text-xs font-semibold text-gray-200 group-hover:text-blue-300 flex items-center justify-between">
+                  <span>PRO obuna qanday qulaylik beradi?</span>
+                  <span class="material-symbols-outlined text-sm">expand_more</span>
+                </summary>
+                <p class="text-[11px] text-gray-400 mt-2 leading-relaxed">
+                  PRO obuna barcha premium testlarni, cheksiz urinishlarni va Oltin ramkali eksklyuziv sertifikat olish imkoniyatini taqdim etadi.
+                </p>
+              </details>
+            </div>
+
+            <!-- Student's My Recent Appeals -->
+            <div class="glass-panel p-6 rounded-3xl space-y-3">
+              <div class="flex items-center justify-between">
+                <h4 class="text-xs font-bold font-heading uppercase tracking-wider text-gray-400">Mening Murojaatlarim</h4>
+                <button onclick="app.loadMySupportTickets()" class="text-blue-400 hover:text-blue-300 text-[11px] flex items-center gap-1">
+                  <span class="material-symbols-outlined text-sm">refresh</span> Yangilash
+                </button>
+              </div>
+              <div id="my-support-tickets-list" class="space-y-2 text-xs text-gray-400">
+                Murojaatlar yuklanmoqda...
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    `;
+
+    this.loadMySupportTickets();
+  },
+
+  async loadMySupportTickets() {
+    const container = document.getElementById('my-support-tickets-list');
+    if (!container) return;
+
+    const res = await api('/api/support/my');
+    if (res.success && res.data && res.data.length > 0) {
+      container.innerHTML = res.data.map(t => {
+        let statusBadge = 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+        if (t.status === 'Ko\'rib chiqilmoqda') statusBadge = 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+        if (t.status === 'Hal qilindi') statusBadge = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+
+        return `
+          <div class="p-3 rounded-xl bg-white/5 border border-white/5 space-y-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusBadge}">${this.escapeHtml(t.status || 'Yangi')}</span>
+              <span class="text-[10px] text-gray-500">${new Date(t.createdAt).toLocaleDateString()}</span>
+            </div>
+            <h5 class="font-bold text-white text-xs">${this.escapeHtml(t.subject)}</h5>
+            <p class="text-[11px] text-gray-400 line-clamp-2">${this.escapeHtml(t.message)}</p>
+          </div>
+        `;
+      }).join('');
+    } else {
+      container.innerHTML = `
+        <div class="text-center py-4 text-gray-500 text-[11px]">
+          Siz hali murojaat yubormagansiz.
+        </div>
+      `;
+    }
+  },
+
+  // ----------------------------------------------------
+  // ADMIN SUPPORT INBOX (MUROJAATLAR BOSHQARUVI)
+  // ----------------------------------------------------
+  async renderAdminSupport() {
+    const root = document.getElementById('app-root');
+    const headerHtml = this.getAdminHeaderHtml('support', 'Talabalar Murojaatlari (Support Inbox)', 'Talabalardan kelgan barcha savollar, xatoliklar va takliflarni boshqaring');
+
+    root.innerHTML = `
+      <div class="space-y-6 animate-fadeIn pb-16">
+        ${headerHtml}
+
+        <!-- 3 Stat Metrics -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="glass-panel p-5 rounded-2xl glow-card">
+            <div class="flex items-center justify-between text-gray-400 text-xs mb-1">
+              <span>Jami Murojaatlar</span>
+              <span class="material-symbols-outlined text-blue-400">inbox</span>
+            </div>
+            <div id="admin-sup-total" class="text-2xl font-black text-white font-heading">...</div>
+          </div>
+          <div class="glass-panel p-5 rounded-2xl glow-card">
+            <div class="flex items-center justify-between text-gray-400 text-xs mb-1">
+              <span>Yangi Murojaatlar</span>
+              <span class="material-symbols-outlined text-amber-400">mark_email_unread</span>
+            </div>
+            <div id="admin-sup-new" class="text-2xl font-black text-amber-400 font-heading">...</div>
+          </div>
+          <div class="glass-panel p-5 rounded-2xl glow-card">
+            <div class="flex items-center justify-between text-gray-400 text-xs mb-1">
+              <span>Hal Qilinganlar</span>
+              <span class="material-symbols-outlined text-emerald-400">check_circle</span>
+            </div>
+            <div id="admin-sup-resolved" class="text-2xl font-black text-emerald-400 font-heading">...</div>
+          </div>
+        </div>
+
+        <!-- Filter & Search Bar -->
+        <div class="glass-panel p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <button onclick="app.filterAdminSupport('all')" id="btn-sup-f-all" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-black">Barchasi</button>
+            <button onclick="app.filterAdminSupport('Yangi')" id="btn-sup-f-new" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white/5 text-gray-300 hover:text-white">Yangi</button>
+            <button onclick="app.filterAdminSupport('Hal qilindi')" id="btn-sup-f-res" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white/5 text-gray-300 hover:text-white">Hal qilingan</button>
+          </div>
+
+          <button onclick="app.loadAdminSupportTickets()" class="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-semibold transition flex items-center gap-1">
+            <span class="material-symbols-outlined text-[15px]">refresh</span> Yangilash
+          </button>
+        </div>
+
+        <!-- Support Tickets List Container -->
+        <div id="admin-support-list" class="space-y-4">
+          <div class="p-8 text-center text-gray-500 text-xs">Murojaatlar yuklanmoqda...</div>
+        </div>
+      </div>
+    `;
+
+    this._adminSupFilter = 'all';
+    await this.loadAdminSupportTickets();
+  },
+
+  async loadAdminSupportTickets() {
+    const container = document.getElementById('admin-support-list');
+    if (!container) return;
+
+    const res = await api('/api/support/all');
+    const tickets = (res.success && res.data) ? res.data : [];
+
+    // Update stats
+    const totalEl = document.getElementById('admin-sup-total');
+    const newEl = document.getElementById('admin-sup-new');
+    const resEl = document.getElementById('admin-sup-resolved');
+    if (totalEl) totalEl.textContent = tickets.length;
+    if (newEl) newEl.textContent = tickets.filter(t => t.status === 'Yangi' || !t.status).length;
+    if (resEl) resEl.textContent = tickets.filter(t => t.status === 'Hal qilindi').length;
+
+    const filter = this._adminSupFilter || 'all';
+    const filtered = filter === 'all' ? tickets : tickets.filter(t => (t.status || 'Yangi') === filter);
+
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div class="glass-panel p-12 text-center rounded-3xl space-y-3">
+          <span class="material-symbols-outlined text-4xl text-gray-500">mark_email_read</span>
+          <h4 class="text-sm font-bold text-white">Murojaatlar topilmadi</h4>
+          <p class="text-xs text-gray-400">Ushbu filtr bo'yicha hech qanday murojaat mavjud emas.</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = filtered.map(t => {
+      const isResolved = t.status === 'Hal qilindi';
+      let statusBadge = isResolved 
+        ? '<span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">✅ Hal qilindi</span>'
+        : '<span class="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">🔔 Yangi</span>';
+
+      return `
+        <div class="glass-panel p-5 sm:p-6 rounded-3xl space-y-4 border ${isResolved ? 'border-white/5 opacity-80' : 'border-amber-500/30 bg-gradient-to-r from-amber-950/10 via-[#14161f] to-[#14161f]'}">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 font-bold flex items-center justify-center text-sm shrink-0">
+                ${(t.studentName || 'U').charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="font-bold text-white text-sm">${this.escapeHtml(t.studentName || 'Talaba')}</h4>
+                  <span class="px-2 py-0.5 rounded bg-white/5 text-[10px] text-gray-400">${this.escapeHtml(t.category || 'Umumiy')}</span>
+                </div>
+                <div class="text-[11px] text-gray-400 flex items-center gap-2 mt-0.5">
+                  <span>✉️ ${this.escapeHtml(t.studentEmail || '')}</span>
+                  ${t.contactInfo ? `<span class="text-sky-300">📱 ${this.escapeHtml(t.contactInfo)}</span>` : ''}
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 self-start sm:self-center">
+              ${statusBadge}
+              <span class="text-[11px] text-gray-500">${new Date(t.createdAt).toLocaleString()}</span>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <h5 class="text-sm font-bold text-white">${this.escapeHtml(t.subject)}</h5>
+            <p class="text-xs text-gray-300 leading-relaxed bg-white/5 p-3.5 rounded-2xl border border-white/5 whitespace-pre-wrap">${this.escapeHtml(t.message)}</p>
+          </div>
+
+          <div class="flex items-center justify-between pt-2">
+            <div class="flex items-center gap-2">
+              ${t.studentEmail ? `
+                <a href="mailto:${t.studentEmail}?subject=Re: ${encodeURIComponent(t.subject)}" class="px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 text-xs font-semibold transition flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[15px]">mail</span> Email orqali javob berish
+                </a>
+              ` : ''}
+              ${t.contactInfo && t.contactInfo.includes('@') ? `
+                <a href="https://t.me/${t.contactInfo.replace('@', '')}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-xs font-semibold transition flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[15px]">send</span> Telegramda yozish
+                </a>
+              ` : ''}
+            </div>
+
+            <div class="flex items-center gap-2">
+              ${!isResolved ? `
+                <button onclick="app.updateSupportTicketStatus('${t.id}', 'Hal qilindi')" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1 shadow-sm">
+                  <span class="material-symbols-outlined text-[15px]">check</span> Hal qilindi
+                </button>
+              ` : `
+                <button onclick="app.updateSupportTicketStatus('${t.id}', 'Yangi')" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 text-xs font-semibold transition">
+                  Qayta ochish
+                </button>
+              `}
+              <button onclick="app.deleteSupportTicket('${t.id}')" class="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition" title="O'chirish">
+                <span class="material-symbols-outlined text-[16px]">delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  filterAdminSupport(filter) {
+    this._adminSupFilter = filter;
+    const btns = {
+      all: document.getElementById('btn-sup-f-all'),
+      'Yangi': document.getElementById('btn-sup-f-new'),
+      'Hal qilindi': document.getElementById('btn-sup-f-res')
+    };
+    Object.keys(btns).forEach(k => {
+      if (btns[k]) {
+        if (k === filter) {
+          btns[k].className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-black';
+        } else {
+          btns[k].className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-white/5 text-gray-300 hover:text-white';
+        }
+      }
+    });
+    this.loadAdminSupportTickets();
+  },
+
+  async updateSupportTicketStatus(ticketId, status) {
+    const res = await api(`/api/support/${ticketId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status })
+    });
+    if (res.success) {
+      showToast('Murojaat holati yangilandi', 'success');
+      this.loadAdminSupportTickets();
+    } else {
+      showToast(res.message || 'Xatolik yuz berdi', 'error');
+    }
+  },
+
+  async deleteSupportTicket(ticketId) {
+    if (!confirm('Ushbu murojaatni rostdan ham o\'chirmoqchimisiz?')) return;
+    const res = await api(`/api/support/${ticketId}`, { method: 'DELETE' });
+    if (res.success) {
+      showToast('Murojaat o\'chirildi', 'info');
+      this.loadAdminSupportTickets();
+    }
   }
 };
 
