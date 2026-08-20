@@ -1,0 +1,39 @@
+## Build and Output Folders
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.cache
+
+## Database files
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+TestPlatformDb.db
+
+## Node & Dependencies
+node_modules/
+
+## Temporary & Scratch folders
+scratch/
+.system_generated/
+.user_uploaded/
+stitch_animated_dark_interface/
+*.log
+
+## IDE & OS files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+Thumbs.db
+.DS_Store
+
+## Local appsettings with private keys (optional override)
+appsettings.Development.json
+appsettings.Local.json

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="uz" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d0e12" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Test Platforma - Bilimingizni Sinovdan O'tkazing</title>
+  <meta name="description" content="Zamonaviy, xavfsiz va tezkor onlayn test topshirish platformasi. Bilimingizni sinang, reytingda yuqorilang va rasmiy sertifikatga ega bo'ling!" />
+  
+  <!-- Favicon / Brand Tab Icon -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.0" />
+  <link rel="apple-touch-icon" href="favicon.svg?v=1.0" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Geist:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:ital,wght@0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet" />
+  <!-- Material Symbols -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+  <!-- Canvas Confetti for winning certificates -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css?v=114.0" />
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              400: '#60a5fa',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a'
+            },
+            surface: {
+              main: '#0d0e12',
+              card: '#14161f',
+              cardHover: '#1a1d29',
+              border: 'rgba(255, 255, 255, 0.08)'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-[#090a0f] text-[#f3f4f6] min-h-screen flex flex-col antialiased selection:bg-blue-600 selection:text-white relative">
+
+  <!-- FULLSCREEN INTRO OPENING ANIMATION SPLASH SCREEN -->
+  <div id="app-splash-screen" class="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-[#07080c] transition-all duration-700 select-none overflow-hidden">
+    <!-- Animated particle / glow rings behind logo -->
+    <div class="absolute w-[420px] h-[420px] rounded-full bg-gradient-to-tr from-blue-600/30 via-indigo-600/25 to-cyan-500/25 blur-3xl animate-pulse pointer-events-none"></div>
+    
+    <div class="relative z-10 flex flex-col items-center text-center space-y-6 max-w-sm px-6">
+      
+      <!-- Pulsing Neural Logo with Rotating Cyber Rings -->
+      <div class="relative flex items-center justify-center">
+        <div class="absolute inset-[-14px] rounded-3xl border border-blue-500/30 animate-spin" style="animation-duration: 8s;"></div>
+        <div class="absolute inset-[-7px] rounded-3xl border border-dashed border-cyan-400/40 animate-spin" style="animation-duration: 12s; animation-direction: reverse;"></div>
+        
+        <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 text-white flex items-center justify-center shadow-[0_0_50px_rgba(59,130,246,0.6)] ring-2 ring-white/30 transform transition-transform duration-500 hover:scale-105">
+          <span class="material-symbols-outlined text-4xl animate-pulse">psychology</span>
+        </div>
+      </div>
+
+      <!-- App Title & Subtitle -->
+      <div class="space-y-1">
+        <h1 class="text-3xl font-black font-heading text-white tracking-tight flex items-center justify-center gap-2">
+          Test<span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-300 to-indigo-400">Platform</span>
+        </h1>
+        <p class="text-xs text-gray-400 tracking-wider uppercase font-medium">Professional Knowledge Assessment Hub</p>
+      </div>
+
+      <!-- Animated Progress Bar & Status Text -->
+      <div class="w-full space-y-2.5 pt-2">
+        <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden p-0.5 border border-white/10">
+          <div id="splash-progress-bar" class="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-indigo-500 rounded-full w-0 transition-all duration-300 shadow-[0_0_15px_rgba(6,182,212,0.8)]"></div>
+        </div>
+        
+        <div class="flex items-center justify-between text-[11px] text-gray-400 font-mono">
+          <span id="splash-status-text" class="flex items-center gap-1.5 text-blue-300">
+            <span class="inline-block w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+            Tizim yuklanmoqda...
+          </span>
+          <span id="splash-percent-text" class="font-bold text-gray-300">0%</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Interactive WebGL Shader Canvas Background -->
+  <canvas id="bg-shader-canvas"></canvas>
+
+  <!-- NAVBAR -->
+  <header class="sticky top-0 z-50 glass-nav border-b border-white/10 backdrop-blur-xl bg-[#0d0e12]/85 relative">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 py-3 flex items-center justify-between gap-4">
+      
+      <!-- Brand Logo -->
+      <a href="#/login" class="flex items-center gap-3 group shrink-0">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/25 group-hover:scale-105 transition-transform duration-300">
+          <span class="material-symbols-outlined text-white text-xl">psychology</span>
+        </div>
+        <div class="hidden sm:block">
+          <div class="text-lg font-bold font-heading tracking-tight flex items-center gap-1.5 text-white">
+            Test<span class="text-blue-400">Platform</span>
+          </div>
+          <p class="text-[10px] text-gray-400 -mt-0.5">Online Knowledge Hub</p>
+        </div>
+      </a>
+
+      <!-- Navigation Links -->
+      <nav id="main-nav" class="hidden items-center gap-1.5 bg-white/5 px-2 py-1.5 rounded-xl border border-white/5 text-xs font-medium shrink-0">
+        <a href="#/dashboard" id="nav-dashboard" class="px-3 py-1.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 transition-all inline-flex items-center gap-1.5 whitespace-nowrap leading-none">
+          <span class="material-symbols-outlined text-[16px]">dashboard</span> <span>Dashboard</span>
+        </a>
+        <a href="#/tests" id="nav-tests" class="px-3 py-1.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 transition-all inline-flex items-center gap-1.5 whitespace-nowrap leading-none">
+          <span class="material-symbols-outlined text-[16px]">quiz</span> <span>Testlar</span>
+        </a>
+        <a href="#/leaderboard" id="nav-leaderboard" class="px-3 py-1.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 transition-all inline-flex items-center gap-1.5 whitespace-nowrap leading-none">
+          <span class="material-symbols-outlined text-[16px]">leaderboard</span> <span>Reyting</span>
+        </a>
+        <a href="#/verify-cert" id="nav-verify" class="px-3 py-1.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 transition-all inline-flex items-center gap-1.5 whitespace-nowrap leading-none">
+          <span class="material-symbols-outlined text-[16px]">verified</span> <span>Sertifikat</span>
+        </a>
+        <a href="#/pricing" id="nav-pricing" class="px-3 py-1.5 rounded-lg text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-all inline-flex items-center gap-1.5 whitespace-nowrap leading-none border border-amber-500/20 bg-amber-500/5">
+          <span class="material-symbols-outlined text-[16px] text-amber-400">workspace_premium</span> <span class="font-bold">Tariflar PRO</span>
+        </a>
+      </nav>
+
+      <!-- Right Action Area: User / Login / Register -->
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Auth Status Container -->
+        <div id="nav-auth-container" class="flex items-center gap-2">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Mobile Menu Toggle -->
+        <button onclick="app.toggleMobileMenu()" class="lg:hidden p-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:text-white">
+          <span class="material-symbols-outlined text-[20px]">menu</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Mobile Navigation Dropdown -->
+    <div id="mobile-menu" class="hidden md:hidden px-4 pt-2 pb-4 space-y-1 bg-[#14161f] border-b border-white/10">
+      <a href="#/dashboard" class="block px-3 py-2 rounded-lg text-gray-300 hover:bg-white/5">📊 Dashboard</a>
+      <a href="#/tests" class="block px-3 py-2 rounded-lg text-gray-300 hover:bg-white/5">📝 Testlar katalogi</a>
+      <a href="#/pricing" class="block px-3 py-2 rounded-lg text-amber-400 font-bold bg-amber-500/10 border border-amber-500/20">👑 PRO Tariflar</a>
+      <a href="#/leaderboard" class="block px-3 py-2 rounded-lg text-gray-300 hover:bg-white/5">🏆 Reyting</a>
+      <a href="#/verify-cert" class="block px-3 py-2 rounded-lg text-gray-300 hover:bg-white/5">📜 Sertifikat tekshirish</a>
+      <a href="#/profile" class="block px-3 py-2 rounded-lg text-gray-300 hover:bg-white/5">👤 Profil</a>
+    </div>
+  </header>
+
+  <!-- MAIN APP ROUTER CONTAINER -->
+  <main id="app-root" class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-opacity duration-200 relative z-10">
+    <!-- Dynamic View Content Rendered Here via app.js -->
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="mt-auto border-t border-white/10 bg-[#0a0b0e]/90 py-8 text-center text-xs text-gray-400 relative z-10">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <div class="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs">
+          <span class="material-symbols-outlined text-[14px]">psychology</span>
+        </div>
+        <span class="font-bold text-gray-200">Test Platforma</span> &copy; 2026. Barcha huquqlar himoyalangan.
+      </div>
+      <div class="flex items-center gap-4 text-gray-400">
+        <a href="/scalar/v1" target="_blank" class="hover:text-blue-400 transition flex items-center gap-1">
+          <span class="material-symbols-outlined text-[14px]">api</span> Scalar OpenAPI Docs
+        </a>
+        <span>•</span>
+        <a href="#/verify-cert" class="hover:text-blue-400 transition">Sertifikat Tekshiruvi</a>
+        <span>•</span>
+        <a href="#/admin" class="hover:text-amber-400 transition">Tizim Boshqaruvi</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- FLOATING AI ASSISTANT TRIGGER BUTTON -->
+  <div id="ai-floating-container" class="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2 pointer-events-auto">
+    <!-- AI Quick Hint Tooltip / Mini Badge -->
+    <div id="ai-hint-badge" class="hidden px-3.5 py-1.5 rounded-xl bg-purple-900/90 text-purple-200 border border-purple-500/40 text-[11px] font-semibold shadow-xl backdrop-blur-md animate-bounce flex items-center gap-1.5">
+      <span class="material-symbols-outlined text-[14px] text-purple-400">auto_awesome</span>
+      <span>Savolga maslahat kerakmi? Bosing!</span>
+    </div>
+
+    <!-- Main Floating Button -->
+    <button id="ai-floating-btn" onclick="app.toggleAiDrawer()" class="group relative px-4 py-3 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold text-xs shadow-2xl shadow-purple-600/40 flex items-center gap-2.5 transition-all duration-300 hover:scale-105 active:scale-95 border border-white/20">
+      <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></div>
+      <span class="material-symbols-outlined text-lg group-hover:rotate-12 transition-transform">psychology</span>
+      <span class="font-heading tracking-wide">Nova AI Yordamchi</span>
+    </button>
+  </div>
+
+  <!-- FLOATING AI CHAT DRAWER / PANEL -->
+  <div id="ai-chat-drawer" class="fixed inset-y-0 right-0 z-50 w-full sm:w-[420px] bg-[#0b0d13]/95 backdrop-blur-2xl border-l border-white/10 shadow-2xl flex flex-col transform translate-x-full transition-transform duration-300 ease-out">
+    <!-- AI Drawer Header -->
+    <div class="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-white/5">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/30">
+          <span class="material-symbols-outlined text-2xl">smart_toy</span>
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <h3 class="text-sm font-black font-heading text-white">Nova AI Mentor</h3>
+            <span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[9px] font-bold uppercase border border-purple-500/30">Sokratik AI</span>
+          </div>
+          <p class="text-[10px] text-gray-400">Aqlli repetitor & ta'lim maslahatchisi</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-1">
+        <button onclick="app.clearAiChat()" class="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition" title="Yozishmalarni tozalash">
+          <span class="material-symbols-outlined text-[18px]">delete_sweep</span>
+        </button>
+        <button onclick="app.toggleAiDrawer(false)" class="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition" title="Yopish">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Notice Banner: Socratic Mode (Never gives direct answers) -->
+    <div class="px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/20 text-[11px] text-amber-300 flex items-start gap-2">
+      <span class="material-symbols-outlined text-sm text-amber-400 shrink-0 mt-0.5">verified_user</span>
+      <span><strong>Mustaqil Bilim Qoidasi:</strong> AI to'g'ridan-to'g'ri tayyor javobni bermaydi, faqat qoida, formula va yo'l-yo'riq ko'rsatadi!</span>
+    </div>
+
+    <!-- Active Question Context Pill (Shown when test solving) -->
+    <div id="ai-active-question-context" class="hidden px-4 py-2.5 bg-purple-950/40 border-b border-purple-500/20 flex items-center justify-between text-[11px]">
+      <div class="flex items-center gap-1.5 text-purple-300 truncate max-w-[260px]">
+        <span class="material-symbols-outlined text-[15px] shrink-0">help</span>
+        <span id="ai-context-q-text" class="truncate">Hozirgi savol bo'yicha</span>
+      </div>
+      <button onclick="app.askAiForCurrentQuestionHint()" class="px-2.5 py-1 rounded-lg bg-purple-500/30 text-purple-200 hover:bg-purple-500/50 text-[10px] font-bold shrink-0 transition flex items-center gap-1 shadow-sm">
+        <span class="material-symbols-outlined text-[13px]">lightbulb</span> Maslahat olish
+      </button>
+    </div>
+
+    <!-- Messages Area -->
+    <div id="ai-chat-messages" class="flex-1 p-4 overflow-y-auto space-y-3.5 text-xs text-gray-300">
+      <!-- AI Greeting Bubble -->
+      <div class="flex items-start gap-2.5">
+        <div class="w-7 h-7 rounded-xl bg-purple-600/30 text-purple-300 flex items-center justify-center shrink-0 mt-0.5 border border-purple-500/30">
+          <span class="material-symbols-outlined text-sm">smart_toy</span>
+        </div>
+        <div class="p-3.5 rounded-2xl rounded-tl-none bg-white/5 border border-white/10 space-y-2 max-w-[88%] leading-relaxed text-gray-200">
+          <p>Assalomu alaykum! Men <strong>Nova AI</strong> — sizning aqlli ta'lim maslahatchi va repetitoringizman. 🎓</p>
+          <p class="text-gray-400 text-[11px]">Savollarni tushunish, formulalarni eslash yoki yechish usulini bilishda menga murojaat qilishingiz mumkin.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Action Prompt Chips -->
+    <div class="p-2.5 border-t border-white/5 bg-black/20 overflow-x-auto no-scrollbar flex items-center gap-1.5">
+      <button onclick="app.sendQuickAiPrompt('💡 Hozirgi savolga yo\'llanma va maslahat ber')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 text-[10px] font-semibold whitespace-nowrap transition">
+        💡 Savolga maslahat
+      </button>
+      <button onclick="app.sendQuickAiPrompt('📐 Qoida va formulani tushuntir')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 text-[10px] font-semibold whitespace-nowrap transition">
+        📐 Qoida / Formula
+      </button>
+      <button onclick="app.sendQuickAiPrompt('🎯 Testni qanday oson topshirish mumkin?')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 text-[10px] font-semibold whitespace-nowrap transition">
+        🎯 Maslahatlar
+      </button>
+    </div>
+
+    <!-- Chat Input Area -->
+    <form onsubmit="app.handleAiFormSubmit(event)" class="p-3 sm:p-4 border-t border-white/10 bg-[#08090d] flex items-center gap-2">
+      <input type="text" id="ai-chat-input" placeholder="Savol yoki tushunmagan mavzungizni yozing..." class="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-purple-500 transition" />
+      <button type="submit" id="ai-send-btn" class="p-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white transition flex items-center justify-center shadow-md shadow-purple-600/30">
+        <span class="material-symbols-outlined text-[18px]">send</span>
+      </button>
+    </form>
+  </div>
+
+  <!-- MODALS CONTAINER -->
+  <div id="modal-container" class="relative z-50"></div>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Splash Screen Animation Runner -->
+  <script>
+    (function runSplashScreen() {
+      const splash = document.getElementById('app-splash-screen');
+      const bar = document.getElementById('splash-progress-bar');
+      const statusText = document.getElementById('splash-status-text');
+      const percentText = document.getElementById('splash-percent-text');
+      if (!splash || !bar) return;
+
+      let progress = 0;
+      const stages = [
+        { at: 25, text: "Tizim modullari yuklanmoqda..." },
+        { at: 60, text: "Shader grafik yadrosi ishga tushirilmoqda..." },
+        { at: 88, text: "Xavfsiz muhit tayyorlanmoqda..." },
+        { at: 100, text: "Xush kelibsiz!" }
+      ];
+
+      const interval = setInterval(() => {
+        progress += Math.floor(Math.random() * 16) + 12;
+        if (progress > 100) progress = 100;
+        
+        bar.style.width = progress + '%';
+        if (percentText) percentText.textContent = progress + '%';
+
+        const cur = stages.find(s => progress <= s.at) || stages[stages.length - 1];
+        if (statusText && cur) {
+          statusText.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span> ' + cur.text;
+        }
+
+        if (progress >= 100) {
+          clearInterval(interval);
+          setTimeout(() => {
+            splash.style.opacity = '0';
+            splash.style.transform = 'scale(1.08)';
+            splash.style.filter = 'blur(14px)';
+            splash.style.pointerEvents = 'none';
+            setTimeout(() => splash.remove(), 750);
+          }, 350);
+        }
+      }, 75);
+    })();
+  </script>
+
+  <!-- Scripts -->
+  <script src="shader.js?v=114.0"></script>
+  <script src="app.js?v=114.0"></script>
+</body>
+</html>
