@@ -3073,10 +3073,6 @@ const app = {
     });
   },
 
-      </div>
-    `;
-  },
-
   // ----------------------------------------------------
   // VIEW 5: GLOBAL LEADERBOARD
   // ----------------------------------------------------
@@ -4447,6 +4443,7 @@ const app = {
     let totalQuestions = 630;
     let totalAttempts = 0;
     let totalUsers = 1;
+    let recentAttempts = [];
 
     if (res.success && res.data) {
       const d = res.data;
@@ -4454,6 +4451,7 @@ const app = {
       totalQuestions = Number(d.totalQuestions) || (totalTests * 10) || 630;
       totalAttempts = Number(d.totalAttempts) || 0;
       totalUsers = Number(d.totalUsers) || 1;
+      recentAttempts = d.recentAttempts || [];
     }
 
     const testEl = document.getElementById('admin-stat-tests');
@@ -4466,28 +4464,26 @@ const app = {
     if (attEl) attEl.innerText = totalAttempts;
     if (uEl) uEl.innerText = totalUsers;
 
-      // Render live attempts
-      const liveContainer = document.getElementById('admin-live-attempts-list');
-      if (liveContainer) {
-        const attempts = d.recentAttempts || [];
-        if (attempts.length > 0) {
-          liveContainer.innerHTML = attempts.map(a => {
-            const dateStr = a.submittedAt ? new Date(a.submittedAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' }) : '';
-            return `
-              <div class="p-3 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between gap-3">
-                <div class="min-w-0 flex-1">
-                  <div class="font-bold text-white text-xs truncate">${a.studentName || 'Talaba'}</div>
-                  <div class="text-[10px] text-gray-400 mt-0.5 truncate">${a.testTitle || ''} • ${dateStr}</div>
-                </div>
-                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${a.isPassed ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}">
-                  ${Math.round(a.percentage)}%
-                </span>
+    // Render live attempts
+    const liveContainer = document.getElementById('admin-live-attempts-list');
+    if (liveContainer) {
+      if (recentAttempts.length > 0) {
+        liveContainer.innerHTML = recentAttempts.map(a => {
+          const dateStr = a.submittedAt ? new Date(a.submittedAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' }) : '';
+          return `
+            <div class="p-3 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between gap-3">
+              <div class="min-w-0 flex-1">
+                <div class="font-bold text-white text-xs truncate">${a.studentName || 'Talaba'}</div>
+                <div class="text-[10px] text-gray-400 mt-0.5 truncate">${a.testTitle || ''} • ${dateStr}</div>
               </div>
-            `;
-          }).join('');
-        } else {
-          liveContainer.innerHTML = `<div class="p-4 rounded-2xl bg-white/5 text-center text-xs text-gray-400">Topshirishlar yo'q.</div>`;
-        }
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${a.isPassed ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}">
+                ${Math.round(a.percentage)}%
+              </span>
+            </div>
+          `;
+        }).join('');
+      } else {
+        liveContainer.innerHTML = `<div class="p-4 rounded-2xl bg-white/5 text-center text-xs text-gray-400">Topshirishlar yo'q.</div>`;
       }
     }
 
