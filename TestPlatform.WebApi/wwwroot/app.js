@@ -3455,6 +3455,8 @@ const app = {
     state.activeQuiz = test;
     state.quizAnswers = {};
     state.currentQuestionIndex = 0;
+    state.quizAdsShown = {};
+    state.quizTimerPaused = false;
     state.quizStartedAt = new Date().toISOString();
     state.quizTimeRemainingSeconds = (test.timeLimitMinutes || 10) * 60;
 
@@ -3466,6 +3468,7 @@ const app = {
     if (state.quizTimerInterval) clearInterval(state.quizTimerInterval);
 
     state.quizTimerInterval = setInterval(() => {
+      if (state.quizTimerPaused) return; // Paused during 10-second advertisement
       state.quizTimeRemainingSeconds--;
       this.updateTimerDisplay();
 
@@ -3632,9 +3635,135 @@ const app = {
 
   nextQuestion() {
     if (state.currentQuestionIndex < state.activeQuiz.questions.length - 1) {
-      state.currentQuestionIndex++;
+      const targetIndex = state.currentQuestionIndex + 1;
+      const totalQ = state.activeQuiz.questions.length;
+      
+      const isProUser = state.user?.isPremium || state.user?.premiumPlan === 'Pro' || state.user?.premiumPlan === 'VIP' || state.user?.premiumPlan === 'Lifetime' || state.user?.role === 'Admin';
+
+      // 1-2 ads during quiz for free tier (milestone 1 at ~35% and milestone 2 at ~75%)
+      state.quizAdsShown = state.quizAdsShown || {};
+      const milestone1 = Math.max(1, Math.floor(totalQ * 0.35));
+      const milestone2 = Math.max(milestone1 + 1, Math.floor(totalQ * 0.75));
+
+      const shouldShowAd = !isProUser && 
+        ((targetIndex === milestone1 && !state.quizAdsShown[milestone1]) || 
+         (targetIndex === milestone2 && !state.quizAdsShown[milestone2]));
+
+      if (shouldShowAd) {
+        state.quizAdsShown[targetIndex] = true;
+        this.showQuizAdModal(() => {
+          state.currentQuestionIndex = targetIndex;
+          this.renderQuizStudioContent();
+        });
+        return;
+      }
+
+      state.currentQuestionIndex = targetIndex;
       this.renderQuizStudioContent();
     }
+  },
+
+  showQuizAdModal(onContinue) {
+    // Pause quiz countdown timer so student loses 0 seconds
+    state.quizTimerPaused = true;
+
+    const modal = document.getElementById('modal-container');
+    if (!modal) {
+      if (onContinue) onContinue();
+      return;
+    }
+
+    let secondsLeft = 10;
+    const adId = 'quiz-ad-' + Date.now();
+
+    const adContent = `
+      <div id="${adId}" class="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
+        <div class="glass-panel w-full max-w-lg rounded-3xl p-6 sm:p-8 space-y-6 border border-amber-500/40 bg-gradient-to-b from-[#1c1a24] via-[#14161f] to-[#0f1015] shadow-2xl relative text-center">
+          
+          <!-- Top Ad Badge & Live Timer -->
+          <div class="flex items-center justify-between pb-3 border-b border-white/10">
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold tracking-wider uppercase border border-amber-500/30 flex items-center gap-1">
+                <span class="material-symbols-outlined text-[13px]">campaign</span> Homiylik Reklamasi
+              </span>
+            </div>
+            <div class="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-xl border border-white/10">
+              <span class="material-symbols-outlined text-amber-400 text-[16px]">timer</span>
+              <span id="ad-timer-count" class="text-xs font-mono font-bold text-amber-300">${secondsLeft}s</span>
+            </div>
+          </div>
+
+          <!-- Main Ad Content / PRO Pitch -->
+          <div class="space-y-4 py-2">
+            <div class="w-16 h-16 rounded-3xl bg-gradient-to-tr from-amber-500/30 to-yellow-400/20 text-amber-400 border border-amber-500/40 mx-auto flex items-center justify-center text-3xl shadow-lg shadow-amber-500/20 animate-bounce">
+              👑
+            </div>
+
+            <div class="space-y-2">
+              <h3 class="text-lg font-bold font-heading text-white">
+                Reklamasiz, Tezkor va Qulay Test Yechish!
+              </h3>
+              <p class="text-xs text-gray-300 leading-relaxed max-w-md mx-auto">
+                Ushbu reklamalarni butunlay o'chirish uchun <strong class="text-amber-300 font-bold">PRO tarif obunasi</strong>ni olishingiz shart yoki 10 sekund kuting va reklamalar bilan bepul davom etaversangiz bo'ladi.
+              </p>
+            </div>
+
+            <div class="p-3.5 rounded-2xl bg-white/5 border border-white/5 text-left text-xs space-y-2 max-w-sm mx-auto">
+              <div class="flex items-center gap-2 text-emerald-400 font-semibold text-[11px]">
+                <span class="material-symbols-outlined text-[15px]">verified</span> 100% Reklamasiz test yechish
+              </div>
+              <div class="flex items-center gap-2 text-emerald-400 font-semibold text-[11px]">
+                <span class="material-symbols-outlined text-[15px]">verified</span> Barcha fan va PRO testlar ochiq
+              </div>
+              <div class="flex items-center gap-2 text-emerald-400 font-semibold text-[11px]">
+                <span class="material-symbols-outlined text-[15px]">verified</span> Cheksiz urinishlar & Oltin Sertifikat
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="space-y-2 pt-2 border-t border-white/10">
+            <div class="flex flex-col sm:flex-row items-center gap-2">
+              <a href="#/pricing" target="_blank" onclick="state.quizTimerPaused = false; app.closeModal();" class="w-full sm:flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-extrabold text-xs shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px]">workspace_premium</span>
+                <span>PRO Obunaga O'tish</span>
+              </a>
+              <button id="btn-ad-skip" disabled class="w-full sm:flex-1 py-3 rounded-xl bg-white/10 text-gray-400 text-xs font-bold transition flex items-center justify-center gap-1 cursor-not-allowed">
+                <span>Kuting: <span id="ad-skip-counter">10</span>s</span>
+              </button>
+            </div>
+            <p class="text-[10px] text-gray-500">Reklama davomida testingiz vaqti to'xtatib turiladi (vaqt ketmaydi)</p>
+          </div>
+
+        </div>
+      </div>
+    `;
+
+    modal.innerHTML = adContent;
+
+    const timerInterval = setInterval(() => {
+      secondsLeft--;
+      const countEl = document.getElementById('ad-timer-count');
+      const skipCounterEl = document.getElementById('ad-skip-counter');
+      const skipBtn = document.getElementById('btn-ad-skip');
+
+      if (countEl) countEl.textContent = `${secondsLeft}s`;
+      if (skipCounterEl) skipCounterEl.textContent = secondsLeft;
+
+      if (secondsLeft <= 0) {
+        clearInterval(timerInterval);
+        if (skipBtn) {
+          skipBtn.disabled = false;
+          skipBtn.className = "w-full sm:flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 glow-button-primary shadow-lg shadow-blue-500/30 cursor-pointer animate-scaleUp";
+          skipBtn.innerHTML = `<span>Davom etish</span> <span class="material-symbols-outlined text-[16px]">arrow_forward</span>`;
+          skipBtn.onclick = () => {
+            state.quizTimerPaused = false;
+            app.closeModal();
+            if (onContinue) onContinue();
+          };
+        }
+      }
+    }, 1000);
   },
 
   confirmSubmitQuiz() {
@@ -5365,6 +5494,35 @@ const app = {
                 <span class="material-symbols-outlined text-[16px]">history</span> Tizim Xavfsizlik Jurnali
               </a>
             </div>
+
+            <!-- ADVERTISEMENT & PRO SUBSCRIPTION BANNER CARD -->
+            <div class="glass-panel p-5 sm:p-6 rounded-3xl border border-amber-500/30 bg-gradient-to-br from-amber-950/20 via-[#14161f] to-[#14161f] space-y-3.5 relative overflow-hidden shadow-xl">
+              <div class="flex items-center justify-between">
+                <span class="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold tracking-wider uppercase border border-amber-500/30 flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[13px]">campaign</span> Reklama & Homiylik
+                </span>
+                <span class="text-[10px] text-gray-500 font-medium">Platforma</span>
+              </div>
+              <div class="space-y-1.5">
+                <h4 class="text-sm font-bold text-white font-heading flex items-center gap-1.5">
+                  <span>Reklamasiz Qulay Foydalanish</span>
+                  <span class="text-amber-400">👑</span>
+                </h4>
+                <p class="text-xs text-gray-300 leading-relaxed">
+                  Saytdagi barcha reklamalarni o'chirish uchun <strong class="text-amber-300">PRO obunasi</strong>ni olishingiz shart yoki reklamalar bilan bepul davom etaversangiz bo'ladi.
+                </p>
+              </div>
+              <div class="pt-1 space-y-2">
+                <a href="#/pricing" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-extrabold text-xs shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-1.5">
+                  <span class="material-symbols-outlined text-[16px]">workspace_premium</span>
+                  <span>PRO Obunasini Olish</span>
+                </a>
+                <button onclick="showToast('Reklama bilan davom etmoqdasiz. Test topshirishda 10 soniyalik reklamalar chiqadi.', 'info')" class="w-full py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white text-xs font-semibold transition text-center block">
+                  Reklama bilan davom etish
+                </button>
+              </div>
+            </div>
+
           </div>
 
         </div>
