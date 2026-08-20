@@ -111,6 +111,25 @@ function formatFullName(name) {
   return name.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
 
+// Audit Log Recorder Helper
+function recordAuditLog(action, entityName, entityId, details, userName) {
+  try {
+    let logs = JSON.parse(localStorage.getItem('tp_audit_logs') || '[]');
+    const newLog = {
+      id: 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      userName: userName || state.user?.fullName || 'Tizim',
+      action: action || 'ACTION',
+      entityName: entityName || 'System',
+      entityId: entityId ? String(entityId) : '',
+      details: details || '',
+      createdAt: new Date().toISOString()
+    };
+    logs.unshift(newLog);
+    if (logs.length > 250) logs.length = 250;
+    localStorage.setItem('tp_audit_logs', JSON.stringify(logs));
+  } catch (e) {}
+}
+
 // ----------------------------------------------------
 // STANDALONE FALLBACK ENGINE (For Vercel & Static Hosting)
 // ----------------------------------------------------
@@ -836,6 +855,96 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     return { success: true, statusCode: 200, message: "Murojaat o'chirildi" };
   }
 
+  // 15. Audit Logs
+  if (endpoint.startsWith('/api/audit-logs')) {
+    let logs = [];
+    try {
+      logs = JSON.parse(localStorage.getItem('tp_audit_logs') || '[]');
+    } catch (e) {}
+
+    if (!logs.length) {
+      logs = [
+        {
+          id: 'log_1',
+          userName: "Behruz Sagdullayev",
+          action: "ADMIN_LOGIN",
+          entityName: "Auth",
+          entityId: "Admin",
+          details: "Bosh administrator tizimga muvaffaqiyatli kirdi (behruzsagdullayev0707@gmail.com)",
+          createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString()
+        },
+        {
+          id: 'log_2',
+          userName: "Tizim",
+          action: "SECURITY_CONFIG",
+          entityName: "Security",
+          entityId: "EmailOTP",
+          details: "Email orqali 6 xonali OTP tasdiqlash va xavfsiz autentifikatsiya protokoli faollashtirildi",
+          createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString()
+        },
+        {
+          id: 'log_3',
+          userName: "Tizim",
+          action: "SUPPORT_CENTER",
+          entityName: "Support",
+          entityId: "HelpDesk",
+          details: "Talabalar murojaat markazi va Telegram integratsiyasi (@TestPlatformAdmin) ishga tushirildi",
+          createdAt: new Date(Date.now() - 50 * 60 * 1000).toISOString()
+        },
+        {
+          id: 'log_4',
+          userName: "Tizim",
+          action: "TEST_DATABASE_INIT",
+          entityName: "Database",
+          entityId: "63_Tests",
+          details: "21 ta fan bo'yicha jami 63 ta test va 630 ta professional savollar bazasi yuklandi",
+          createdAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString()
+        },
+        {
+          id: 'log_5',
+          userName: "Tizim",
+          action: "CERTIFICATE_ENGINE",
+          entityName: "Certificate",
+          entityId: "Engine",
+          details: "Raqamli QR-kodli Oltin va Standart sertifikatlar generatsiya moduli sozlandi",
+          createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString()
+        },
+        {
+          id: 'log_6',
+          userName: "Tizim",
+          action: "PAYMENT_GATEWAY",
+          entityName: "Subscription",
+          entityId: "Payme/Click",
+          details: "Payme, Click va VIP promo-kodlar (VIP2025, PRO2025) moduli faollashtirildi",
+          createdAt: new Date(Date.now() - 4 * 3600 * 1000).toISOString()
+        }
+      ];
+      localStorage.setItem('tp_audit_logs', JSON.stringify(logs));
+    }
+
+    if (method === 'POST') {
+      const newLog = {
+        id: 'log_' + Date.now(),
+        userName: body.userName || state.user?.fullName || 'Tizim',
+        action: body.action || 'ACTION',
+        entityName: body.entityName || 'System',
+        entityId: body.entityId || '',
+        details: body.details || '',
+        createdAt: new Date().toISOString()
+      };
+      logs.unshift(newLog);
+      localStorage.setItem('tp_audit_logs', JSON.stringify(logs));
+      return { success: true, statusCode: 200, data: newLog };
+    }
+
+    if (endpoint === '/api/audit-logs/clear' || (endpoint.startsWith('/api/audit-logs') && method === 'DELETE')) {
+      localStorage.setItem('tp_audit_logs', JSON.stringify([]));
+      return { success: true, statusCode: 200, message: "Audit jurnali tozalandi" };
+    }
+
+    return { success: true, statusCode: 200, data: logs };
+  }
+
   return null;
 }
 
@@ -1557,6 +1666,12 @@ const app = {
       saveSession(res.data.token, res.data.user);
       this.updateNavAuth();
 
+      if (state.user.role === 'Admin') {
+        recordAuditLog('ADMIN_LOGIN', 'Auth', state.user.email, `Bosh administrator tizimga kirdi (${state.user.fullName})`, state.user.fullName);
+      } else {
+        recordAuditLog('USER_LOGIN', 'Auth', state.user.email, `Talaba tizimga kirdi (${state.user.fullName})`, state.user.fullName);
+      }
+
       if (btn) {
         btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">check_circle</span> Muvaffaqiyatli!';
       }
@@ -1621,6 +1736,7 @@ const app = {
     if (res.success && res.data) {
       saveSession(res.data.token, res.data.user);
       this.updateNavAuth();
+      recordAuditLog('USER_REGISTER', 'User', email, `Yangi talaba ro'yxatdan o'tdi: ${payload.fullName} (${email})`, payload.fullName);
       showToast('Muvaffaqiyatli ro\'yxatdan o\'tdingiz!', 'success');
       setTimeout(() => { window.location.hash = '#/tests'; }, 250);
     } else {
@@ -6072,15 +6188,27 @@ const app = {
       <div class="space-y-6 animate-fadeIn pb-12">
         ${this.getAdminHeaderHtml('audit-logs', 'Tizim Audit Jurnali', 'Bajarilgan harakatlar va amallar qaydlari', '#/admin')}
 
-        <div class="glass-panel rounded-3xl overflow-hidden border border-white/10">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="text-xs text-gray-400">Tizimda bajarilgan barcha xavfsizlik, test topshirish va boshqaruv amallari</div>
+          <div class="flex items-center gap-2">
+            <button onclick="app.renderAdminAuditLogs()" class="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 text-xs font-bold transition flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">refresh</span> Yangilash
+            </button>
+            <button onclick="app.clearAuditLogs()" class="px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold transition flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">delete_sweep</span> Jurnalni Tozalash
+            </button>
+          </div>
+        </div>
+
+        <div class="glass-panel rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs text-gray-300">
-              <thead class="bg-white/5 text-gray-400 uppercase font-semibold text-[10px]">
+              <thead class="bg-white/5 text-gray-400 uppercase font-semibold text-[10px] tracking-wider border-b border-white/10">
                 <tr>
-                  <th class="px-6 py-3.5">Vaqt</th>
-                  <th class="px-6 py-3.5">Foydalanuvchi</th>
-                  <th class="px-6 py-3.5">Harakat</th>
-                  <th class="px-6 py-3.5">Tafsilot</th>
+                  <th class="px-6 py-4">Vaqt</th>
+                  <th class="px-6 py-4">Foydalanuvchi</th>
+                  <th class="px-6 py-4">Harakat</th>
+                  <th class="px-6 py-4">Tafsilot</th>
                 </tr>
               </thead>
               <tbody id="admin-audit-table-body" class="divide-y divide-white/5">
@@ -6094,32 +6222,37 @@ const app = {
 
     const res = await api('/api/audit-logs?top=50');
     const tbody = document.getElementById('admin-audit-table-body');
+    if (!tbody) return;
+
     if (res.success && res.data && res.data.length > 0) {
       tbody.innerHTML = res.data.map(log => {
         const actionUpper = (log.action || '').toUpperCase();
         let badgeClass = 'bg-blue-500/20 text-blue-300 border-blue-500/30';
-        if (actionUpper.includes('CREATE') || actionUpper.includes('ADD') || actionUpper.includes('START') || actionUpper.includes('INIT')) {
+        if (actionUpper.includes('CREATE') || actionUpper.includes('ADD') || actionUpper.includes('START') || actionUpper.includes('INIT') || actionUpper.includes('REGISTER')) {
           badgeClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
-        } else if (actionUpper.includes('UPDATE') || actionUpper.includes('EDIT') || actionUpper.includes('CONFIG') || actionUpper.includes('SET')) {
+        } else if (actionUpper.includes('UPDATE') || actionUpper.includes('EDIT') || actionUpper.includes('CONFIG') || actionUpper.includes('SET') || actionUpper.includes('CHANGE')) {
           badgeClass = 'bg-amber-500/20 text-amber-300 border-amber-500/30';
-        } else if (actionUpper.includes('DELETE') || actionUpper.includes('REMOVE')) {
+        } else if (actionUpper.includes('DELETE') || actionUpper.includes('REMOVE') || actionUpper.includes('FAIL')) {
           badgeClass = 'bg-rose-500/20 text-rose-300 border-rose-500/30';
-        } else if (actionUpper.includes('PAYMENT') || actionUpper.includes('UPGRADE') || actionUpper.includes('PREMIUM') || actionUpper.includes('PROMO')) {
+        } else if (actionUpper.includes('PAYMENT') || actionUpper.includes('UPGRADE') || actionUpper.includes('PREMIUM') || actionUpper.includes('PROMO') || actionUpper.includes('VIP')) {
           badgeClass = 'bg-purple-500/20 text-purple-300 border-purple-500/30';
-        } else if (actionUpper.includes('CERTIFICATE') || actionUpper.includes('EXAM')) {
+        } else if (actionUpper.includes('CERTIFICATE') || actionUpper.includes('EXAM') || actionUpper.includes('SUPPORT')) {
           badgeClass = 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
         }
 
-        const dateStr = new Date(log.createdAt).toLocaleString('uz-UZ', { 
+        const dateObj = new Date(log.createdAt);
+        const dateStr = !isNaN(dateObj) ? dateObj.toLocaleString('uz-UZ', { 
           year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' 
-        });
+        }) : log.createdAt;
 
         return `
           <tr class="hover:bg-white/5 transition text-xs">
             <td class="px-6 py-3.5 text-gray-400 font-mono text-[11px] whitespace-nowrap">${dateStr}</td>
-            <td class="px-6 py-3.5 text-white font-semibold flex items-center gap-1.5">
-              <span class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] text-gray-300 font-bold">${(log.userName || 'T')[0].toUpperCase()}</span>
-              <span>${this.escapeHtml(log.userName || 'Tizim')}</span>
+            <td class="px-6 py-3.5 text-white font-semibold">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] text-gray-300 font-bold shrink-0">${(log.userName || 'T')[0].toUpperCase()}</span>
+                <span class="truncate max-w-[140px]">${this.escapeHtml(log.userName || 'Tizim')}</span>
+              </div>
             </td>
             <td class="px-6 py-3.5 whitespace-nowrap">
               <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border ${badgeClass}">
@@ -6127,7 +6260,7 @@ const app = {
               </span>
             </td>
             <td class="px-6 py-3.5 text-gray-300 leading-relaxed max-w-md">
-              ${this.escapeHtml(log.details || '')}
+              <div>${this.escapeHtml(log.details || '')}</div>
               ${log.entityName ? `<span class="block text-[10px] text-gray-500 mt-0.5 font-mono">Obyekt: ${this.escapeHtml(log.entityName)} ${log.entityId ? `[${this.escapeHtml(log.entityId)}]` : ''}</span>` : ''}
             </td>
           </tr>
@@ -6136,6 +6269,14 @@ const app = {
     } else {
       tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-gray-500">Hozircha audit qaydlari mavjud emas.</td></tr>`;
     }
+  },
+
+  async clearAuditLogs() {
+    if (!confirm("Barcha audit qaydlarini tozalashni tasdiqlaysizmi?")) return;
+    localStorage.setItem('tp_audit_logs', JSON.stringify([]));
+    await api('/api/audit-logs/clear', { method: 'POST' });
+    showToast("Audit jurnali tozalandi", "info");
+    this.renderAdminAuditLogs();
   },
 
   // ----------------------------------------------------
