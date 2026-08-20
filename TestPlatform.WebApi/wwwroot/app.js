@@ -578,38 +578,133 @@ async function handleStandaloneFallback(endpoint, options = {}) {
   if (endpoint.startsWith('/api/dashboard')) {
     const attempts = JSON.parse(localStorage.getItem('tp_local_attempts') || '[]');
     const certs = JSON.parse(localStorage.getItem('tp_local_certs') || '[]');
+    const localUsers = JSON.parse(localStorage.getItem('tp_local_users') || '[]');
+    const totalQuestions = (data.tests || []).reduce((acc, t) => acc + (t.questions ? t.questions.length : (t.questionsCount || 10)), 0);
+    const totalUsersCount = Math.max(1, localUsers.length + 1);
+
+    if (endpoint === '/api/dashboard/student' || endpoint.startsWith('/api/dashboard/student')) {
+      const passedCount = attempts.filter(a => a.isPassed).length;
+      const avg = attempts.length ? Math.round(attempts.reduce((s, a) => s + a.percentage, 0) / attempts.length) : 0;
+      return {
+        success: true,
+        statusCode: 200,
+        data: {
+          totalTestsTaken: attempts.length,
+          passedCount: passedCount,
+          averagePercentage: avg,
+          certificatesCount: certs.length,
+          leaderboardRank: 1,
+          recentAnnouncements: [
+            {
+              id: 'ann_1',
+              title: "Yangi 63 ta fan testlari bazasi yuklandi!",
+              content: "Platformamizga 21 ta fan bo'yicha jami 63 ta saralangan va standartlarga mos interaktiv testlar joylashtirildi. Bilimingizni sinab ko'ring!",
+              category: "Yangilik",
+              icon: "campaign",
+              authorName: "Behruz Sagdullayev",
+              isPinned: true,
+              createdAt: new Date().toISOString()
+            },
+            {
+              id: 'ann_2',
+              title: "Adminga Murojaat Markazi ishga tushirildi",
+              content: "Testlarda qiyinchilik yoki savollar bo'lsa, 'Murojaat' bo'limi orqali to'g'ridan-to'g'ri adminga xabar yuborishingiz mumkin.",
+              category: "Yangilanish",
+              icon: "support_agent",
+              authorName: "Behruz Sagdullayev",
+              isPinned: false,
+              createdAt: new Date(Date.now() - 86400000).toISOString()
+            }
+          ],
+          recentAttempts: attempts.slice(0, 5),
+          recommendedTests: (data.tests || []).slice(0, 4)
+        }
+      };
+    }
+
     return {
       success: true,
       statusCode: 200,
       data: {
-        totalTests: data.tests.length,
-        totalStudents: 1,
+        totalTests: (data.tests || []).length,
+        totalQuestions: totalQuestions,
         totalAttempts: attempts.length,
-        testsTaken: attempts.length,
-        testsPassed: attempts.filter(a => a.isPassed).length,
-        averageScore: attempts.length ? Math.round(attempts.reduce((s, a) => s + a.percentage, 0) / attempts.length) : 0,
-        certificatesCount: certs.length,
-        recentAttempts: attempts.slice(0, 5)
+        totalUsers: totalUsersCount,
+        totalStudents: Math.max(0, totalUsersCount - 1),
+        totalSubjects: (data.subjects || []).length,
+        totalPublishedTests: (data.tests || []).filter(t => t.isPublished !== false).length,
+        averagePercentage: attempts.length ? Math.round(attempts.reduce((s, a) => s + a.percentage, 0) / attempts.length) : 0,
+        passedAttempts: attempts.filter(a => a.isPassed).length,
+        failedAttempts: attempts.filter(a => !a.isPassed).length,
+        recentAttempts: attempts.slice(0, 8).map(a => ({
+          id: a.attemptId || a.id,
+          studentName: a.studentName || 'Talaba',
+          testTitle: a.testTitle || 'Test',
+          percentage: a.percentage || 0,
+          isPassed: !!a.isPassed,
+          submittedAt: a.submittedAt || new Date().toISOString()
+        }))
       }
     };
   }
 
   // 12. Announcements
   if (endpoint.startsWith('/api/announcements')) {
-    return {
-      success: true,
-      statusCode: 200,
-      data: [
+    let announcements = [];
+    try {
+      announcements = JSON.parse(localStorage.getItem('tp_local_announcements') || '[]');
+    } catch (e) {}
+
+    if (!announcements.length) {
+      announcements = [
         {
           id: 'ann_1',
-          title: "Xush kelibsiz!",
-          content: "Test Platformaga xush kelibsiz. Bilimingizni sinang va rasmiy sertifikatlarga ega bo'ling!",
-          type: "Info",
-          priority: 1,
+          title: "Platformaga 63 ta fan testlari bazasi yuklandi!",
+          content: "21 ta asosiy fan bo'yicha jami 63 ta professional testlar bazasi (Boshlang'ich, Standart, Murakkab) muvaffaqiyatli joylashtirildi.",
+          category: "Yangilik",
+          icon: "campaign",
+          authorName: "Behruz Sagdullayev",
+          isPinned: true,
           createdAt: new Date().toISOString()
+        },
+        {
+          id: 'ann_2',
+          title: "Adminga Murojaat Markazi ishga tushirildi",
+          content: "Talabalar savol yoki qiyinchiliklarga duch kelganda to'g'ridan-to'g'ri administratorga murojaat yuborishlari mumkin.",
+          category: "Yangilanish",
+          icon: "support_agent",
+          authorName: "Behruz Sagdullayev",
+          isPinned: false,
+          createdAt: new Date(Date.now() - 86400000).toISOString()
         }
-      ]
-    };
+      ];
+      localStorage.setItem('tp_local_announcements', JSON.stringify(announcements));
+    }
+
+    if (method === 'POST') {
+      const newAnn = {
+        id: 'ann_' + Date.now(),
+        title: body.title || "Yangi E'lon",
+        content: body.content || "",
+        category: body.category || "Yangilik",
+        icon: body.icon || "campaign",
+        authorName: state.user?.fullName || "Behruz Sagdullayev",
+        isPinned: !!body.isPinned,
+        createdAt: new Date().toISOString()
+      };
+      announcements.unshift(newAnn);
+      localStorage.setItem('tp_local_announcements', JSON.stringify(announcements));
+      return { success: true, statusCode: 200, message: "E'lon muvaffaqiyatli saqlandi", data: newAnn };
+    }
+
+    if (method === 'DELETE') {
+      const annId = endpoint.split('/')[3];
+      announcements = announcements.filter(a => a.id !== annId);
+      localStorage.setItem('tp_local_announcements', JSON.stringify(announcements));
+      return { success: true, statusCode: 200, message: "E'lon o'chirildi" };
+    }
+
+    return { success: true, statusCode: 200, data: announcements };
   }
 
   // 13. Premium & Pricing
@@ -4023,10 +4118,29 @@ const app = {
     const res = await api('/api/dashboard/summary');
     if (res.success && res.data) {
       const d = res.data;
-      document.getElementById('admin-stat-tests').innerText = d.totalTests || 0;
-      document.getElementById('admin-stat-questions').innerText = d.totalQuestions || 0;
-      document.getElementById('admin-stat-attempts').innerText = d.totalAttempts || 0;
-      document.getElementById('admin-stat-users').innerText = d.totalUsers || 0;
+      let totalTests = d.totalTests || 0;
+      let totalQuestions = d.totalQuestions || 0;
+      let totalAttempts = d.totalAttempts || 0;
+      let totalUsers = d.totalUsers || 0;
+
+      // Fallback calculation if totalQuestions is 0
+      if (!totalQuestions) {
+        const testsRes = await api('/api/tests?page=1&pageSize=100');
+        const tests = Array.isArray(testsRes.data) ? testsRes.data : (testsRes.data?.items || []);
+        if (tests.length > 0) {
+          totalTests = tests.length;
+          totalQuestions = tests.reduce((acc, t) => acc + (t.questionsCount || t.questions?.length || 10), 0);
+        }
+      }
+
+      if (!totalUsers) {
+        totalUsers = 1;
+      }
+
+      document.getElementById('admin-stat-tests').innerText = totalTests;
+      document.getElementById('admin-stat-questions').innerText = totalQuestions;
+      document.getElementById('admin-stat-attempts').innerText = totalAttempts;
+      document.getElementById('admin-stat-users').innerText = totalUsers;
 
       // Render live attempts
       const liveContainer = document.getElementById('admin-live-attempts-list');
