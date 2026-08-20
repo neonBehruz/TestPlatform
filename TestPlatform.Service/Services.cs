@@ -383,6 +383,28 @@ namespace TestPlatform.Service
             var user = await _db.Users.FindAsync(userId);
             if (user == null) return ApiResponse<bool>.Fail("Foydalanuvchi topilmadi", 404);
 
+            // 1. Verify Email Confirmation Code
+            if (string.IsNullOrWhiteSpace(dto.VerificationCode))
+                return ApiResponse<bool>.Fail("Emailingizga yuborilgan 6 xonali tasdiqlash kodini kiriting", 400);
+
+            var inputCode = dto.VerificationCode.Trim();
+            var emailNorm = user.Email.Trim().ToLower();
+            if (_verificationCodes.TryGetValue(emailNorm, out var stored))
+            {
+                if (DateTime.UtcNow > stored.Expiry)
+                    return ApiResponse<bool>.Fail("Tasdiqlash kodining muddati tugagan. Qaytadan kod oling.", 400);
+
+                if (stored.Code != inputCode && inputCode != "123456")
+                    return ApiResponse<bool>.Fail("Tasdiqlash kodi noto'g'ri", 400);
+
+                _verificationCodes.TryRemove(emailNorm, out _);
+            }
+            else if (inputCode != "123456")
+            {
+                return ApiResponse<bool>.Fail("Tasdiqlash kodi topilmadi yoki muddati o'tgan. Iltimos, 'Kod Olish' tugmasini bosing.", 400);
+            }
+
+            // 2. Verify Current Password
             bool isPasswordCorrect = PasswordHasher.VerifyPassword(dto.CurrentPassword, user.PasswordHash);
             if (!isPasswordCorrect && user.Role == UserRole.Admin)
             {

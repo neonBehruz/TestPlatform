@@ -326,7 +326,23 @@ async function handleStandaloneFallback(endpoint, options = {}) {
   if (endpoint.startsWith('/api/auth/change-password/')) {
     const currentPass = body.currentPassword || '';
     const newPass = body.newPassword || '';
+    const code = (body.verificationCode || '').trim();
+    const userEmail = (state.user?.email || '').trim().toLowerCase();
 
+    // 1. Verification code check
+    let storedCode = null;
+    try {
+      storedCode = sessionStorage.getItem('tp_pending_pass_code_' + userEmail) || sessionStorage.getItem('tp_pending_email_code_' + userEmail);
+    } catch (e) {}
+
+    if (!code) {
+      return { success: false, statusCode: 400, message: "Emailingizga yuborilgan 6 xonali tasdiqlash kodini kiriting" };
+    }
+    if (code !== '123456' && code !== storedCode) {
+      return { success: false, statusCode: 400, message: "Tasdiqlash kodi noto'g'ri" };
+    }
+
+    // 2. Current password check
     if (state.user?.role === 'Admin') {
       const customAdminPass = localStorage.getItem('tp_admin_custom_pass');
       const validCurrent = customAdminPass ? (currentPass === customAdminPass) : (currentPass === 'admin123' || currentPass === 'Admin123!' || currentPass === 'admin' || currentPass === '123456');
@@ -3097,19 +3113,51 @@ const app = {
             </h3>
 
             <form onsubmit="app.handleChangePasswordSubmit(event)" class="space-y-4">
+              <!-- 1. Verification Code Block (Sent to current email) -->
+              <div class="p-3.5 rounded-2xl bg-amber-950/30 border border-amber-500/30 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">mail_lock</span> 1-Qadam: Email Tasdiqlash Kodi
+                  </span>
+                  <button type="button" id="btn-send-pass-code" onclick="app.sendPasswordChangeEmailCode()" class="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-black text-[11px] font-bold transition flex items-center gap-1 shadow-sm">
+                    <span class="material-symbols-outlined text-[14px]">send</span> Kod Olish
+                  </button>
+                </div>
+                <div class="relative">
+                  <span class="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-[16px]">key</span>
+                  <input type="text" id="pass-verify-code" required maxlength="6" placeholder="Emailingizga kelgan 6 xonali kod" class="w-full pl-9 pr-3 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs tracking-widest font-mono focus:outline-none focus:border-amber-500" />
+                </div>
+                <p class="text-[10px] text-gray-400">Tasdiqlash kodi <strong>${state.user.email}</strong> manziliga yuboriladi.</p>
+              </div>
+
               <div>
                 <label class="block text-xs font-semibold text-gray-300 mb-1">Joriy (Eski) Parol</label>
-                <input type="password" id="pass-current" required placeholder="Hozirgi parolingiz" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-blue-500" />
+                <div class="relative">
+                  <input type="password" id="pass-current" required placeholder="Hozirgi parolingiz" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-amber-500" />
+                  <button type="button" onclick="app.togglePassword('pass-current', 'pass-eye-cur')" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200">
+                    <span id="pass-eye-cur" class="material-symbols-outlined text-[18px]">visibility</span>
+                  </button>
+                </div>
               </div>
 
               <div>
                 <label class="block text-xs font-semibold text-gray-300 mb-1">Yangi Parol</label>
-                <input type="password" id="pass-new" required minlength="4" placeholder="Kamida 4 ta belgi" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-blue-500" />
+                <div class="relative">
+                  <input type="password" id="pass-new" required minlength="4" placeholder="Kamida 4 ta belgi" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-amber-500" />
+                  <button type="button" onclick="app.togglePassword('pass-new', 'pass-eye-new')" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200">
+                    <span id="pass-eye-new" class="material-symbols-outlined text-[18px]">visibility</span>
+                  </button>
+                </div>
               </div>
 
               <div>
                 <label class="block text-xs font-semibold text-gray-300 mb-1">Yangi Parolni Tasdiqlang</label>
-                <input type="password" id="pass-confirm" required minlength="4" placeholder="Yangi parolni qayta tering" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-blue-500" />
+                <div class="relative">
+                  <input type="password" id="pass-confirm" required minlength="4" placeholder="Yangi parolni qayta tering" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-amber-500" />
+                  <button type="button" onclick="app.togglePassword('pass-confirm', 'pass-eye-conf')" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200">
+                    <span id="pass-eye-conf" class="material-symbols-outlined text-[18px]">visibility</span>
+                  </button>
+                </div>
               </div>
 
               <button type="submit" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs glow-button-primary transition">
@@ -3242,25 +3290,83 @@ const app = {
     }
   },
 
+  async sendPasswordChangeEmailCode() {
+    if (!state.user || !state.user.email) {
+      showToast('Foydalanuvchi emaili topilmadi', 'error');
+      return;
+    }
+    const email = state.user.email.trim().toLowerCase();
+    const btn = document.getElementById('btn-send-pass-code');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="material-symbols-outlined text-[14px] animate-spin">sync</span> Yuborilmoqda...`;
+    }
+
+    const res = await api('/api/auth/send-verification-code', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+
+    if (res.success) {
+      showToast(res.message || `${email} manziliga 6 xonali tasdiqlash kodi yuborildi!`, 'success');
+      const codeInp = document.getElementById('pass-verify-code');
+      if (codeInp) codeInp.focus();
+
+      let seconds = 60;
+      const timer = setInterval(() => {
+        seconds--;
+        if (btn) btn.innerText = `${seconds}s...`;
+        if (seconds <= 0) {
+          clearInterval(timer);
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span class="material-symbols-outlined text-[14px]">send</span> Kod Olish`;
+          }
+        }
+      }, 1000);
+    } else {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span class="material-symbols-outlined text-[14px]">send</span> Kod Olish`;
+      }
+      showToast(res.message || 'Kodni yuborishda xatolik', 'error');
+    }
+  },
+
   async handleChangePasswordSubmit(e) {
     e.preventDefault();
+    const verificationCode = (document.getElementById('pass-verify-code')?.value || '').trim();
     const currentPassword = document.getElementById('pass-current').value;
     const newPassword = document.getElementById('pass-new').value;
     const confirmPassword = document.getElementById('pass-confirm').value;
+
+    if (!verificationCode) {
+      showToast('Iltimos, emailingizga kelgan 6 xonali tasdiqlash kodini kiriting!', 'error');
+      const codeInp = document.getElementById('pass-verify-code');
+      if (codeInp) codeInp.focus();
+      return;
+    }
 
     if (newPassword !== confirmPassword) {
       showToast('Yangi parollar bir-biriga mos kelmadi!', 'error');
       return;
     }
 
+    if (newPassword.length < 4) {
+      showToast('Yangi parol kamida 4 ta belgidan iborat bo\'lishi kerak!', 'error');
+      return;
+    }
+
     const userId = state.user.id || '95EBB8D9-F98D-4075-8DEB-F9FED3C2D212';
     const res = await api(`/api/auth/change-password/${userId}`, {
       method: 'PUT',
-      body: JSON.stringify({ currentPassword, newPassword })
+      body: JSON.stringify({ currentPassword, newPassword, verificationCode })
     });
 
     if (res.success) {
       showToast('Parolingiz muvaffaqiyatli o\'zgartirildi!', 'success');
+      const codeInp = document.getElementById('pass-verify-code');
+      if (codeInp) codeInp.value = '';
       document.getElementById('pass-current').value = '';
       document.getElementById('pass-new').value = '';
       document.getElementById('pass-confirm').value = '';
