@@ -991,7 +991,6 @@ const app = {
               <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-600 text-white flex items-center justify-center mx-auto shadow-xl shadow-blue-500/30 ring-1 ring-white/20 transform hover:scale-105 transition-transform duration-300">
                 <span class="material-symbols-outlined text-3xl">psychology</span>
               </div>
-              <span class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-[#12151f] rounded-full"></span>
             </div>
             <div>
               <h2 class="text-2xl sm:text-3xl font-black font-heading text-white tracking-tight">Test<span class="text-blue-400">Platform</span></h2>
