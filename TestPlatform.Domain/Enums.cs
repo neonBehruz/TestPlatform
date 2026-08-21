@@ -3,7 +3,8 @@ namespace TestPlatform.Domain
     public enum UserRole
     {
         Admin = 1,
-        Student = 2
+        Student = 2,
+        Teacher = 3
     }
 
     public enum DifficultyLevel

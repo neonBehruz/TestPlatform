@@ -25,16 +25,24 @@ function saveSession(token, user) {
   state.token = token || '';
   state.user = user || null;
   if (state.user) {
-    const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || state.user.email === 'behruzsagdullayev0707@gmail.com';
-    if (!isAdmin) {
+    const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || state.user.email === 'behruzsagdullayev0707@gmail.com' || state.user.email === 'admin@testplatform.com';
+    const isTeacher = state.user.role === 'Teacher' || state.user.role === 3;
+    if (isAdmin) {
+      state.user.role = 'Admin';
+      state.user.email = 'behruzsagdullayev0707@gmail.com';
+      state.user.fullName = 'Behruz Sagdullayev';
+      state.user.isPremium = true;
+      state.user.premiumPlan = 'VIP';
+    } else if (isTeacher) {
+      state.user.role = 'Teacher';
+      state.user.isPremium = false;
+      state.user.premiumPlan = null;
+    } else {
+      state.user.role = 'Student';
       if (!state.user.hasPaidSubscription) {
         state.user.isPremium = false;
         state.user.premiumPlan = null;
       }
-    } else {
-      state.user.role = 'Admin';
-      state.user.isPremium = true;
-      state.user.premiumPlan = 'VIP';
     }
   }
   if (token && state.user) {
@@ -48,10 +56,22 @@ function saveSession(token, user) {
 function updateUserSession(user) {
   state.user = user;
   if (state.user) {
-    const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || state.user.email === 'behruzsagdullayev0707@gmail.com';
-    if (!isAdmin && !state.user.hasPaidSubscription) {
-      state.user.isPremium = false;
-      state.user.premiumPlan = null;
+    const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || state.user.email === 'behruzsagdullayev0707@gmail.com' || state.user.email === 'admin@testplatform.com';
+    const isTeacher = state.user.role === 'Teacher' || state.user.role === 3;
+    if (isAdmin) {
+      state.user.role = 'Admin';
+      state.user.email = 'behruzsagdullayev0707@gmail.com';
+      state.user.fullName = 'Behruz Sagdullayev';
+      state.user.isPremium = true;
+      state.user.premiumPlan = 'VIP';
+    } else if (isTeacher) {
+      state.user.role = 'Teacher';
+    } else {
+      state.user.role = 'Student';
+      if (!state.user.hasPaidSubscription) {
+        state.user.isPremium = false;
+        state.user.premiumPlan = null;
+      }
     }
     localStorage.setItem('tp_user', JSON.stringify(state.user));
     sessionStorage.setItem('tp_user', JSON.stringify(state.user));
@@ -784,7 +804,83 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     }
   }
 
-  // 10.1 Users Management (List, Delete)
+  // 10.1 Users Management (List, Teachers, Roles, Delete)
+  if (endpoint === '/api/users/teachers' || endpoint.startsWith('/api/users/teachers')) {
+    let users = [];
+    try { users = JSON.parse(localStorage.getItem('tp_local_users') || '[]'); } catch (e) {}
+    const teachers = users.filter(u => u.role === 'Teacher').map(u => ({
+      id: u.id,
+      fullName: u.fullName,
+      email: u.email,
+      role: 'Teacher',
+      isActive: true,
+      createdTestsCount: data.tests?.length || 0,
+      totalQuestionsCount: 30,
+      createdAt: u.createdAt || new Date().toISOString()
+    }));
+    return { success: true, statusCode: 200, message: "O'qituvchilar ro'yxati", data: teachers };
+  }
+
+  if (endpoint === '/api/users/create-teacher') {
+    const fullName = formatFullName(body.fullName || 'O\'qituvchi');
+    const email = (body.email || '').trim().toLowerCase();
+    const password = body.password || 'teacher123';
+
+    let users = [];
+    try { users = JSON.parse(localStorage.getItem('tp_local_users') || '[]'); } catch (e) {}
+
+    if (users.some(u => (u.email || '').toLowerCase() === email)) {
+      return { success: false, statusCode: 400, message: "Ushbu email bilan foydalanuvchi allaqachon mavjud!" };
+    }
+
+    const newTeacher = {
+      id: 'teacher_' + Date.now(),
+      fullName,
+      email,
+      role: 'Teacher',
+      isActive: true,
+      createdAt: new Date().toISOString()
+    };
+    users.push(newTeacher);
+    localStorage.setItem('tp_local_users', JSON.stringify(users));
+    localStorage.setItem('tp_user_pass_' + email, password);
+
+    return { success: true, statusCode: 200, message: "Yangi o'qituvchi muvaffaqiyatli yaratildi", data: newTeacher };
+  }
+
+  if (endpoint.includes('/set-role')) {
+    const parts = endpoint.split('/');
+    const targetId = parts[3] || body.id;
+    const targetRole = body.role || 'Teacher';
+
+    let users = [];
+    try { users = JSON.parse(localStorage.getItem('tp_local_users') || '[]'); } catch (e) {}
+
+    const u = users.find(x => String(x.id) === String(targetId) || (x.email && x.email.toLowerCase() === String(targetId).toLowerCase()));
+    if (u) {
+      u.role = targetRole;
+      localStorage.setItem('tp_local_users', JSON.stringify(users));
+      return { success: true, statusCode: 200, message: `Foydalanuvchi roli '${targetRole}' ga o'zgartirildi`, data: u };
+    }
+    return { success: false, statusCode: 404, message: "Foydalanuvchi topilmadi" };
+  }
+
+  if (endpoint === '/api/users/stats') {
+    let users = [];
+    try { users = JSON.parse(localStorage.getItem('tp_local_users') || '[]'); } catch (e) {}
+    const totalTeachers = users.filter(u => u.role === 'Teacher').length;
+    const totalStudents = users.filter(u => u.role !== 'Teacher' && u.role !== 'Admin').length;
+    return {
+      success: true,
+      data: {
+        totalUsers: users.length + 1,
+        totalStudents,
+        totalTeachers,
+        totalAdmins: 1
+      }
+    };
+  }
+
   if (endpoint === '/api/users' || endpoint.startsWith('/api/users')) {
     let users = [];
     try {
@@ -880,7 +976,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
       })
       .map(u => ({
         ...u,
-        role: 'Student',
+        role: u.role || 'Student',
         isPremium: u.isPremium || u.hasPaidSubscription || false,
         premiumPlan: u.premiumPlan || (u.isPremium ? 'PRO' : null)
       }));
@@ -1144,23 +1240,6 @@ async function handleStandaloneFallback(endpoint, options = {}) {
       adminPromos = JSON.parse(localStorage.getItem('tp_admin_promos') || '[]');
     } catch (e) {}
 
-    if (!adminPromos.length) {
-      const now = new Date();
-      const future = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-      adminPromos = [
-        { 
-          code: 'BEHRUZ2026', 
-          discountPercent: 20, 
-          description: 'Admin rasmiy promo-kodi', 
-          startDate: now.toISOString().slice(0, 10),
-          endDate: future.toISOString().slice(0, 10),
-          isActive: true, 
-          createdAt: now.toISOString() 
-        }
-      ];
-      localStorage.setItem('tp_admin_promos', JSON.stringify(adminPromos));
-    }
-
     const foundPromo = adminPromos.find(p => p.code.toUpperCase() === code);
     if (!foundPromo) {
       return {
@@ -1253,23 +1332,6 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     try {
       promos = JSON.parse(localStorage.getItem('tp_admin_promos') || '[]');
     } catch (e) {}
-
-    if (!promos.length) {
-      const now = new Date();
-      const future = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-      promos = [
-        { 
-          code: 'BEHRUZ2026', 
-          discountPercent: 20, 
-          description: 'Admin rasmiy promo-kodi', 
-          startDate: now.toISOString().slice(0, 10),
-          endDate: future.toISOString().slice(0, 10),
-          isActive: true, 
-          createdAt: now.toISOString() 
-        }
-      ];
-      localStorage.setItem('tp_admin_promos', JSON.stringify(promos));
-    }
 
     if (method === 'POST') {
       const newCode = (body.code || '').trim().toUpperCase();
@@ -1594,7 +1656,7 @@ const app = {
       try {
         state.token = restoredToken;
         state.user = JSON.parse(restoredUser);
-        const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || state.user.email === 'behruzsagdullayev0707@gmail.com';
+        const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || state.user.email === 'behruzsagdullayev0707@gmail.com' || state.user.email === 'admin@testplatform.com';
         if (!isAdmin) {
           // Reset any cached/mock student PRO/VIP status unless actively paid
           if (!state.user.hasPaidSubscription) {
@@ -1604,6 +1666,8 @@ const app = {
           }
         } else {
           state.user.role = 'Admin';
+          state.user.email = 'behruzsagdullayev0707@gmail.com';
+          state.user.fullName = 'Behruz Sagdullayev';
           state.user.isPremium = true;
           state.user.premiumPlan = 'VIP';
           updateUserSession(state.user);
@@ -1615,11 +1679,12 @@ const app = {
       clearSession();
     }
 
-    // Clean up local student records
+    // Clean up local student records & obsolete dummy users/promos
     try {
       const localUsers = JSON.parse(localStorage.getItem('tp_local_users') || '[]');
-      let modified = false;
-      localUsers.forEach(u => {
+      const filteredUsers = localUsers.filter(u => (u.email || '').toLowerCase() !== 'admin@testplatform.com');
+      let modified = filteredUsers.length !== localUsers.length;
+      filteredUsers.forEach(u => {
         if (u.role !== 'Admin' && (u.email || '').toLowerCase() !== 'behruzsagdullayev0707@gmail.com') {
           if (!u.hasPaidSubscription && (u.isPremium || u.premiumPlan)) {
             u.isPremium = false;
@@ -1629,7 +1694,14 @@ const app = {
         }
       });
       if (modified) {
-        localStorage.setItem('tp_local_users', JSON.stringify(localUsers));
+        localStorage.setItem('tp_local_users', JSON.stringify(filteredUsers));
+      }
+
+      // Clean legacy auto-seeded BEHRUZ2026 promo
+      const promos = JSON.parse(localStorage.getItem('tp_admin_promos') || '[]');
+      const cleanedPromos = promos.filter(p => p.code !== 'BEHRUZ2026' || p.description !== 'Admin rasmiy promo-kodi');
+      if (cleanedPromos.length !== promos.length) {
+        localStorage.setItem('tp_admin_promos', JSON.stringify(cleanedPromos));
       }
     } catch (e) {}
 
@@ -1680,7 +1752,21 @@ const app = {
     if (hash.startsWith('#/admin')) {
       if (!state.user || state.user.role !== 'Admin') {
         showToast('Admin panel faqat administratorlar uchun! Iltimos, admin sifatida kiring.', 'error');
-        window.location.hash = state.user ? '#/dashboard' : '#/login';
+        window.location.hash = (state.user && state.user.role === 'Teacher') ? '#/teacher' : (state.user ? '#/dashboard' : '#/login');
+        return;
+      }
+    }
+
+    // Role-based protection for Teacher routes
+    if (hash.startsWith('#/teacher')) {
+      if (!state.user) {
+        showToast('O\'qituvchi paneliga kirish uchun avval tizimga kiring', 'info');
+        window.location.hash = '#/login';
+        return;
+      }
+      if (state.user.role !== 'Teacher' && state.user.role !== 'Admin') {
+        showToast('Ushbu bo\'lim faqat o\'qituvchilar va administratorlar uchun!', 'error');
+        window.location.hash = '#/dashboard';
         return;
       }
     }
@@ -1695,6 +1781,8 @@ const app = {
       }
       if (state.user.role === 'Admin') {
         this.renderAdminDashboard();
+      } else if (state.user.role === 'Teacher') {
+        this.renderTeacherDashboard();
       } else {
         this.renderTestsCatalog();
       }
@@ -1732,6 +1820,8 @@ const app = {
       }
       if (state.user.role === 'Admin') {
         this.renderAdminDashboard();
+      } else if (state.user.role === 'Teacher') {
+        this.renderTeacherDashboard();
       } else {
         this.renderStudentDashboard();
       }
@@ -1748,6 +1838,8 @@ const app = {
       this.renderCertificate(certNumber);
     } else if (hash === '#/admin' || hash === '#/admin/dashboard') {
       this.renderAdminDashboard();
+    } else if (hash === '#/admin/teachers') {
+      this.renderAdminTeachers();
     } else if (hash === '#/admin/support') {
       this.renderAdminSupport();
     } else if (hash === '#/admin/tests') {
@@ -1772,6 +1864,26 @@ const app = {
       this.renderAdminSubjects();
     } else if (hash === '#/admin/audit-logs') {
       this.renderAdminAuditLogs();
+    } else if (hash === '#/teacher' || hash === '#/teacher/dashboard') {
+      this.renderTeacherDashboard();
+    } else if (hash === '#/teacher/tests') {
+      this.renderTeacherTests();
+    } else if (hash === '#/teacher/add-test') {
+      this.renderTeacherAddTest();
+    } else if (hash.startsWith('#/teacher/edit-test/')) {
+      const testId = hash.split('/')[3];
+      this.renderTeacherEditTest(testId);
+    } else if (hash.startsWith('#/teacher/add-question/')) {
+      const testId = hash.split('/')[3];
+      this.renderTeacherAddQuestion(testId);
+    } else if (hash.startsWith('#/teacher/bulk-import')) {
+      const parts = hash.split('/');
+      const testId = parts.length > 3 ? parts[3] : '';
+      this.renderTeacherBulkImport(testId);
+    } else if (hash === '#/teacher/subjects') {
+      this.renderTeacherSubjects();
+    } else if (hash === '#/teacher/results') {
+      this.renderTeacherResults();
     } else {
       this.renderHome();
     }
@@ -1797,7 +1909,7 @@ const app = {
     }
 
     document.querySelectorAll('nav a').forEach(a => {
-      a.classList.remove('bg-blue-600/20', 'text-blue-400', 'border', 'border-blue-500/30', 'bg-amber-500/20', 'text-amber-300', 'border-amber-500/30', 'bg-white/10', 'text-white', 'font-semibold');
+      a.classList.remove('bg-blue-600/20', 'text-blue-400', 'border', 'border-blue-500/30', 'bg-amber-500/20', 'text-amber-300', 'border-amber-500/30', 'bg-indigo-500/20', 'text-indigo-300', 'border-indigo-500/30', 'bg-white/10', 'text-white', 'font-semibold');
       a.classList.add('text-gray-300');
     });
 
@@ -1806,6 +1918,9 @@ const app = {
     if (hash === '#/dashboard' || hash === '#/student-dashboard') {
       const el = document.getElementById('nav-dashboard');
       if (el) { el.classList.add(...activeClasses); el.classList.remove('text-gray-300'); }
+    } else if (hash.startsWith('#/teacher')) {
+      const el = document.getElementById('nav-dashboard');
+      if (el) { el.classList.add('bg-indigo-500/20', 'text-indigo-300', 'border', 'border-indigo-500/30', 'font-semibold'); el.classList.remove('text-gray-300'); }
     } else if (hash === '#/' || hash === '' || hash === '#') {
       const el = document.getElementById('nav-home');
       if (el) { el.classList.add(...activeClasses); el.classList.remove('text-gray-300'); }
@@ -1839,11 +1954,14 @@ const app = {
 
     if (state.user) {
       const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || state.user.email === 'behruzsagdullayev0707@gmail.com';
-      const isPro = !isAdmin && (state.user.isPremium || state.user.premiumPlan === 'Pro' || state.user.premiumPlan === 'VIP');
-      const isVip = !isAdmin && (state.user.premiumPlan === 'VIP');
+      const isTeacher = state.user.role === 'Teacher' || state.user.role === 3;
+      const isPro = !isAdmin && !isTeacher && (state.user.isPremium || state.user.premiumPlan === 'Pro' || state.user.premiumPlan === 'VIP');
+      const isVip = !isAdmin && !isTeacher && (state.user.premiumPlan === 'VIP');
       const proBadgeHtml = isAdmin
         ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40">🛡️ ADMIN</span>'
-        : (isVip ? '<span class="badge-vip">💎 VIP</span>' : (isPro ? '<span class="badge-pro">👑 PRO</span>' : ''));
+        : (isTeacher
+          ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">👨‍🏫 TEACHER</span>'
+          : (isVip ? '<span class="badge-vip">💎 VIP</span>' : (isPro ? '<span class="badge-pro">👑 PRO</span>' : '')));
       
       // Show main nav for logged in users
       if (mainNav && window.location.hash !== '#/login' && window.location.hash !== '#/register') {
@@ -1871,17 +1989,20 @@ const app = {
         }
       }
 
-      // Control Dashboard link destination (Admin goes to #/admin, Student to #/dashboard)
+      // Control Dashboard link destination
       const navDash = document.getElementById('nav-dashboard');
       if (navDash) {
-        navDash.setAttribute('href', isAdmin ? '#/admin' : '#/dashboard');
-        navDash.innerHTML = `<span class="material-symbols-outlined text-[16px]">${isAdmin ? 'admin_panel_settings' : 'dashboard'}</span> <span>${isAdmin ? 'Admin Dashboard' : 'Dashboard'}</span>`;
+        const dest = isAdmin ? '#/admin' : (isTeacher ? '#/teacher' : '#/dashboard');
+        const icon = isAdmin ? 'admin_panel_settings' : (isTeacher ? 'school' : 'dashboard');
+        const label = isAdmin ? 'Admin Dashboard' : (isTeacher ? 'O\'qituvchi Paneli' : 'Dashboard');
+        navDash.setAttribute('href', dest);
+        navDash.innerHTML = `<span class="material-symbols-outlined text-[16px]">${icon}</span> <span>${label}</span>`;
       }
 
-      // Control Tariflar PRO visibility (Only for Students / not Admin)
+      // Control Tariflar PRO visibility (Only for regular Students)
       const navPricing = document.getElementById('nav-pricing');
       if (navPricing) {
-        if (isAdmin) {
+        if (isAdmin || isTeacher) {
           navPricing.classList.add('hidden');
         } else {
           navPricing.classList.remove('hidden');
@@ -1889,7 +2010,7 @@ const app = {
       }
       const mobilePricing = document.querySelector('#mobile-menu a[href="#/pricing"]');
       if (mobilePricing) {
-        if (isAdmin) {
+        if (isAdmin || isTeacher) {
           mobilePricing.classList.add('hidden');
         } else {
           mobilePricing.classList.remove('hidden');
@@ -1903,9 +2024,14 @@ const app = {
               <span class="material-symbols-outlined text-[16px] text-amber-400">admin_panel_settings</span>
               <span>Admin Panel</span>
             </a>
-          ` : ''}
-          <a href="#/profile" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border ${isPro ? 'border-amber-500/30 shadow-sm shadow-amber-500/10' : 'border-white/10'} transition group" title="Profil va sozlamalar">
-            <div class="w-7 h-7 rounded-lg ${isAdmin ? 'bg-amber-500' : isPro ? 'bg-gradient-to-tr from-amber-500 to-orange-500' : 'bg-blue-600'} flex items-center justify-center text-xs font-bold text-black shadow-sm">
+          ` : (isTeacher ? `
+            <a href="#/teacher" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition shadow-sm" title="O'qituvchi Boshqaruv Paneli">
+              <span class="material-symbols-outlined text-[16px] text-indigo-400">school</span>
+              <span>O'qituvchi Paneli</span>
+            </a>
+          ` : '')}
+          <a href="#/profile" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border ${isPro ? 'border-amber-500/30 shadow-sm shadow-amber-500/10' : (isTeacher ? 'border-indigo-500/30' : 'border-white/10')} transition group" title="Profil va sozlamalar">
+            <div class="w-7 h-7 rounded-lg ${isAdmin ? 'bg-amber-500 text-black' : (isTeacher ? 'bg-indigo-600 text-white' : (isPro ? 'bg-gradient-to-tr from-amber-500 to-orange-500 text-black' : 'bg-blue-600 text-white'))} flex items-center justify-center text-xs font-bold shadow-sm">
               ${(state.user.fullName || 'U').charAt(0).toUpperCase()}
             </div>
             <div class="text-left hidden sm:block">
@@ -1913,7 +2039,9 @@ const app = {
                 <span>${formatFullName(state.user.fullName)}</span>
                 ${proBadgeHtml}
               </div>
-              <div class="text-[10px] ${isAdmin ? 'text-amber-400 font-bold' : isPro ? 'text-amber-300 font-bold' : 'text-gray-400'} font-semibold leading-tight">${isAdmin ? '👑 Administrator' : (isPro ? (isVip ? '💎 VIP Talaba' : '👑 PRO Talaba') : 'Standart (Bepul)')}</div>
+              <div class="text-[10px] ${isAdmin ? 'text-amber-400 font-bold' : (isTeacher ? 'text-indigo-300 font-bold' : (isPro ? 'text-amber-300 font-bold' : 'text-gray-400'))} font-semibold leading-tight">
+                ${isAdmin ? '👑 Administrator' : (isTeacher ? '👨‍🏫 O\'qituvchi' : (isPro ? (isVip ? '💎 VIP Talaba' : '👑 PRO Talaba') : 'Standart (Talaba)'))}
+              </div>
             </div>
           </a>
           <button onclick="app.logout()" class="p-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 transition" title="Chiqish">
@@ -4992,6 +5120,7 @@ const app = {
   getAdminHeaderHtml(activeTab, title, subtitle, backUrl = '#/admin') {
     const tabs = [
       { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', href: '#/admin' },
+      { id: 'teachers', label: '👨‍🏫 O\'qituvchilar', icon: 'school', href: '#/admin/teachers' },
       { id: 'tests', label: 'Testlar', icon: 'quiz', href: '#/admin/tests' },
       { id: 'bulk-import', label: '🚀 JSON Import', icon: 'upload_file', href: '#/admin/bulk-import' },
       { id: 'subjects', label: 'Fanlar', icon: 'menu_book', href: '#/admin/subjects' },
@@ -5033,6 +5162,59 @@ const app = {
           <div class="flex items-center gap-2 mb-1">
             <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
             <span class="text-[11px] font-bold uppercase tracking-wider text-amber-400">Admin Boshqaruv Markazi</span>
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-black font-heading text-white">${title}</h1>
+          ${subtitle ? `<p class="text-xs sm:text-sm text-gray-400 mt-1">${subtitle}</p>` : ''}
+        </div>
+      </div>
+    `;
+  },
+
+  // ----------------------------------------------------
+  // UNIVERSAL TEACHER HEADER & RESPONSIVE TABS
+  // ----------------------------------------------------
+  getTeacherHeaderHtml(activeTab, title, subtitle, backUrl = '#/teacher') {
+    const tabs = [
+      { id: 'dashboard', label: '📊 Dashboard', icon: 'dashboard', href: '#/teacher' },
+      { id: 'tests', label: '📝 Testlarim', icon: 'quiz', href: '#/teacher/tests' },
+      { id: 'add-test', label: '➕ Yangi Test', icon: 'add_circle', href: '#/teacher/add-test' },
+      { id: 'bulk-import', label: '🚀 JSON Import', icon: 'upload_file', href: '#/teacher/bulk-import' },
+      { id: 'subjects', label: '📚 Fanlar', icon: 'menu_book', href: '#/teacher/subjects' },
+      { id: 'results', label: '📈 O\'quvchilar Natijalari', icon: 'analytics', href: '#/teacher/results' }
+    ];
+
+    const isDashboardTab = activeTab === 'dashboard';
+
+    return `
+      <div class="space-y-5 border-b border-white/10 pb-6 mb-6">
+        <!-- 1. Top Teacher Navigation Tabs -->
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-3 pt-1 border-b border-white/10 no-scrollbar">
+          ${tabs.map(t => {
+            const isActive = t.id === activeTab;
+            return `
+              <a href="${t.href}" class="px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${isActive ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-500/25 ring-1 ring-indigo-400' : 'bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 border border-white/10'}">
+                <span class="material-symbols-outlined text-[15px]">${t.icon}</span>
+                <span>${t.label}</span>
+              </a>
+            `;
+          }).join('')}
+        </div>
+
+        ${!isDashboardTab ? `
+          <!-- Top Back button (Only on child teacher pages) -->
+          <div class="flex items-center justify-start">
+            <a href="${backUrl || '#/teacher'}" class="px-4 py-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 font-bold text-xs border border-indigo-500/30 inline-flex items-center gap-1.5 transition shadow-sm" title="O'qituvchi paneliga qaytish">
+              <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+              <span>⬅️ Orqaga</span>
+            </a>
+          </div>
+        ` : ''}
+
+        <!-- 2. Main Title & Subtitle -->
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse"></span>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-400">O'qituvchi Boshqaruv Markazi</span>
           </div>
           <h1 class="text-2xl sm:text-3xl font-black font-heading text-white">${title}</h1>
           ${subtitle ? `<p class="text-xs sm:text-sm text-gray-400 mt-1">${subtitle}</p>` : ''}
@@ -5481,6 +5663,9 @@ const app = {
               <button onclick="app.openCreateSubjectModal()" class="w-full p-2.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold text-xs flex items-center gap-2 transition">
                 <span class="material-symbols-outlined text-[16px]">menu_book</span> Yangi Fan Qo'shish
               </button>
+              <a href="#/admin/teachers" class="w-full p-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 font-bold text-xs flex items-center gap-2 transition">
+                <span class="material-symbols-outlined text-[16px]">school</span> 👨‍🏫 O'qituvchilar Boshqaruvi
+              </a>
               <a href="#/admin/users" class="w-full p-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-bold text-xs flex items-center gap-2 transition">
                 <span class="material-symbols-outlined text-[16px]">group</span> Foydalanuvchilar Boshqaruvi
               </a>
@@ -7495,7 +7680,7 @@ const app = {
     const root = document.getElementById('app-root');
     root.innerHTML = `
       <div class="space-y-6 animate-fadeIn pb-12">
-        ${this.getAdminHeaderHtml('users', 'Foydalanuvchilar Ro\'yxati', 'Tizimga ro\'yxatdan o\'tgan barcha talabalar va adminlar', '#/admin')}
+        ${this.getAdminHeaderHtml('users', 'Foydalanuvchilar Ro\'yxati', 'Tizimga ro\'yxatdan o\'tgan barcha talabalar, o\'qituvchilar va adminlar', '#/admin')}
 
         <div class="glass-panel rounded-3xl overflow-hidden border border-white/10">
           <div class="overflow-x-auto">
@@ -7538,32 +7723,55 @@ const app = {
         tbody.innerHTML = pageUsers.map(u => {
           const isPro = u.isPremium || u.premiumPlan === 'Pro' || u.premiumPlan === 'VIP' || u.premiumPlan === 'Lifetime';
           const isVip = u.premiumPlan === 'VIP' || u.premiumPlan === 'Lifetime';
-          const planBadge = isVip ? '<span class="badge-vip">💎 VIP</span>' : (isPro ? '<span class="badge-pro">👑 PRO</span>' : '<span class="px-2 py-0.5 rounded bg-white/5 text-gray-400 text-[10px]">Standart</span>');
+          const planBadge = u.role === 'Admin' 
+            ? '<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold text-[10px]">Tizim</span>'
+            : (u.role === 'Teacher' 
+              ? '<span class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold text-[10px]">O\'qituvchi</span>'
+              : (isVip ? '<span class="badge-vip">💎 VIP</span>' : (isPro ? '<span class="badge-pro">👑 PRO</span>' : '<span class="px-2 py-0.5 rounded bg-white/5 text-gray-400 text-[10px]">Standart</span>')));
+
+          const roleBadge = u.role === 'Admin'
+            ? '<span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">🛡️ Admin</span>'
+            : (u.role === 'Teacher'
+              ? '<span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">👨‍🏫 O\'qituvchi</span>'
+              : '<span class="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">🎓 Talaba</span>');
+
+          const isCurrentAdmin = (state.user && state.user.email && state.user.email.toLowerCase() === (u.email || '').toLowerCase()) || (u.email && u.email.toLowerCase() === 'behruzsagdullayev0707@gmail.com');
 
           return `
             <tr class="hover:bg-white/5 transition">
-              <td class="px-6 py-4 font-bold text-white flex items-center gap-1.5">
+              <td class="px-6 py-4 font-bold text-white flex items-center gap-2">
+                <div class="w-7 h-7 rounded-lg ${u.role === 'Admin' ? 'bg-amber-500 text-black' : (u.role === 'Teacher' ? 'bg-indigo-600 text-white' : 'bg-blue-600 text-white')} flex items-center justify-center text-xs font-bold shrink-0">
+                  ${(u.fullName || 'F').charAt(0).toUpperCase()}
+                </div>
                 <span>${this.escapeHtml(u.fullName)}</span>
               </td>
-              <td class="px-6 py-4 text-gray-400">${this.escapeHtml(u.email)}</td>
+              <td class="px-6 py-4 text-gray-400 font-mono">${this.escapeHtml(u.email)}</td>
               <td class="px-6 py-4 text-center">
-                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${u.role === 'Admin' ? 'bg-amber-500/20 text-amber-300' : 'bg-blue-500/20 text-blue-400'}">
-                  ${u.role}
-                </span>
+                ${roleBadge}
               </td>
               <td class="px-6 py-4 text-center">
                 ${planBadge}
               </td>
               <td class="px-6 py-4 text-right">
-                <div class="flex items-center justify-end gap-2">
-                  ${u.role !== 'Admin' ? `
+                <div class="flex items-center justify-end gap-1.5 flex-wrap">
+                  ${u.role === 'Student' ? `
+                    <button onclick="app.setUserRole('${u.id}', 'Teacher', '${this.escapeJs(u.fullName)}')" class="px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 text-[11px] font-bold transition flex items-center gap-1" title="O'qituvchi roliga o'tkazish">
+                      <span class="material-symbols-outlined text-[14px]">school</span> Teacher qilish
+                    </button>
                     <button onclick="app.openGrantProModal('${u.id}', '${this.escapeJs(u.fullName)}')" class="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[11px] font-bold transition flex items-center gap-1" title="PRO/VIP tarif berish">
                       <span class="material-symbols-outlined text-[14px]">workspace_premium</span> PRO berish
                     </button>
+                  ` : ''}
+                  ${u.role === 'Teacher' ? `
+                    <button onclick="app.setUserRole('${u.id}', 'Student', '${this.escapeJs(u.fullName)}')" class="px-2.5 py-1 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-[11px] font-bold transition flex items-center gap-1" title="Talaba roliga tushirish">
+                      <span class="material-symbols-outlined text-[14px]">person</span> Talaba qilish
+                    </button>
+                  ` : ''}
+                  ${!isCurrentAdmin ? `
                     <button onclick="app.deleteUser('${u.id}', '${this.escapeJs(u.fullName)}')" class="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20" title="O'chirish">
                       <span class="material-symbols-outlined text-[16px]">delete</span>
                     </button>
-                  ` : '<span class="text-gray-600 text-[11px]">Asosiy</span>'}
+                  ` : '<span class="text-amber-400/80 text-[11px] pr-2 font-mono font-bold">👑 Bosh Admin (Siz)</span>'}
                 </div>
               </td>
             </tr>
@@ -7617,10 +7825,38 @@ const app = {
     }
   },
 
+  async setUserRole(userId, newRole, fullName = 'Foydalanuvchi') {
+    const roleName = newRole === 'Teacher' ? '👨‍🏫 O\'qituvchi' : (newRole === 'Admin' ? '👑 Admin' : '🎓 Talaba');
+    this.confirmModal({
+      title: "Rolni O'zgartirish",
+      message: `«${fullName}» nomli foydalanuvchiga ${roleName} rolini biriktirmoqchimisiz?`,
+      confirmText: "Ha, Biriktirish",
+      cancelText: "Bekor Qilish",
+      icon: "manage_accounts",
+      type: "primary",
+      onConfirm: async () => {
+        const res = await api(`/api/users/${userId}/set-role`, {
+          method: 'PUT',
+          body: JSON.stringify({ role: newRole })
+        });
+        if (res && res.success) {
+          showToast(`Foydalanuvchi muvaffaqiyatli ${roleName} etib tayinlandi! 🎉`, 'success');
+          if (window.location.hash.startsWith('#/admin/teachers')) {
+            app.renderAdminTeachers();
+          } else {
+            app.renderAdminUsers();
+          }
+        } else {
+          showToast(res?.message || 'Rolni o\'zgartirishda xatolik', 'error');
+        }
+      }
+    });
+  },
+
   deleteUser(userId, fullName = 'Foydalanuvchi') {
     this.confirmModal({
       title: "Foydalanuvchini O'chirish",
-      message: `Haqiqatdan ham «${fullName}» nomli talabani tizimdan butunlay o'chirmoqchimisiz? Uning barcha test natijalari, sertifikatlari va hisobi o'chiriladi.`,
+      message: `Haqiqatdan ham «${fullName}» nomli foydalanuvchini tizimdan butunlay o'chirmoqchimisiz? Uning barcha ma'lumotlari tozalab tashlanadi.`,
       confirmText: "Ha, O'chirish",
       cancelText: "Bekor Qilish",
       icon: "person_remove",
@@ -7629,12 +7865,879 @@ const app = {
         const res = await api(`/api/users/${userId}`, { method: 'DELETE' });
         if (res && res.success) {
           showToast('Foydalanuvchi tizimdan muvaffaqiyatli o\'chirildi! 🗑️', 'success');
-          app.renderAdminUsers();
+          if (window.location.hash.startsWith('#/admin/teachers')) {
+            app.renderAdminTeachers();
+          } else {
+            app.renderAdminUsers();
+          }
         } else {
           showToast(res?.message || 'O\'chirishda xatolik yuz berdi', 'error');
         }
       }
     });
+  },
+
+  // ----------------------------------------------------
+  // ADMIN: TEACHER MANAGEMENT & ROLE ASSIGNMENT
+  // ----------------------------------------------------
+  async renderAdminTeachers(page = 1) {
+    const root = document.getElementById('app-root');
+    root.innerHTML = `
+      <div class="space-y-6 animate-fadeIn pb-12">
+        ${this.getAdminHeaderHtml('teachers', 'O\'qituvchilar Boshqaruvi', 'Platformadagi o\'qituvchilarni boshqarish, yangi o\'qituvchi yaratish va talabalarga Teacher rolini berish', '#/admin')}
+
+        <!-- Top Stats & Actions Row -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="glass-card p-5 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 flex items-center justify-between">
+            <div>
+              <div class="text-xs text-indigo-300 font-medium">Jami O'qituvchilar</div>
+              <div id="admin-teachers-total-count" class="text-2xl font-black text-white mt-1">...</div>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+              <span class="material-symbols-outlined text-2xl">school</span>
+            </div>
+          </div>
+
+          <div class="glass-card p-5 rounded-2xl border border-blue-500/20 bg-blue-500/5 flex items-center justify-between">
+            <div>
+              <div class="text-xs text-blue-300 font-medium">Faol O'qituvchilar</div>
+              <div id="admin-teachers-active-count" class="text-2xl font-black text-white mt-1">...</div>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+              <span class="material-symbols-outlined text-2xl">verified_user</span>
+            </div>
+          </div>
+
+          <div class="glass-card p-5 rounded-2xl border border-amber-500/20 bg-amber-500/5 flex items-center justify-between">
+            <div>
+              <div class="text-xs text-amber-300 font-medium">Tezkor Harakat</div>
+              <button onclick="app.openCreateTeacherModal()" class="mt-1 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-indigo-500/20 transition flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px]">person_add</span> + Yangi O'qituvchi
+              </button>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <span class="material-symbols-outlined text-2xl">add_moderator</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Promote Student Card -->
+        <div class="glass-card p-5 rounded-2xl border border-white/10 bg-white/5">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="material-symbols-outlined text-indigo-400 text-lg">manage_accounts</span>
+            <h3 class="text-sm font-bold text-white">Mavjud Talabaga O'qituvchi (Teacher) Rolini Berish</h3>
+          </div>
+          <div class="flex flex-col sm:flex-row items-center gap-3">
+            <select id="promote-student-select" class="w-full sm:flex-1 px-4 py-2.5 rounded-xl bg-surface-card border border-white/10 text-xs text-white focus:border-indigo-500 focus:outline-none">
+              <option value="">Talabani tanlang...</option>
+            </select>
+            <button onclick="app.handlePromoteSelectedStudent()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/30">
+              <span class="material-symbols-outlined text-[16px]">upgrade</span> O'qituvchi Qilish
+            </button>
+          </div>
+        </div>
+
+        <!-- Teachers Table -->
+        <div class="glass-panel rounded-3xl overflow-hidden border border-white/10">
+          <div class="p-4 border-b border-white/10 flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-indigo-400">groups</span>
+              <span class="text-sm font-bold text-white">O'qituvchilar Ro'yxati</span>
+            </div>
+            <span class="text-xs text-gray-400" id="teachers-table-info">Yuklanmoqda...</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-gray-300">
+              <thead class="bg-white/5 text-gray-400 uppercase font-semibold text-[10px]">
+                <tr>
+                  <th class="px-6 py-3.5">O'qituvchi</th>
+                  <th class="px-6 py-3.5">Email</th>
+                  <th class="px-6 py-3.5 text-center">Testlar Soni</th>
+                  <th class="px-6 py-3.5 text-center">Holati</th>
+                  <th class="px-6 py-3.5 text-center">Tayinlangan Sana</th>
+                  <th class="px-6 py-3.5 text-right">Amallar</th>
+                </tr>
+              </thead>
+              <tbody id="admin-teachers-table-body" class="divide-y divide-white/5">
+                <tr><td colspan="6" class="p-8 text-center text-gray-500">Yuklanmoqda...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Fetch Teachers and all users
+    const [teachersRes, usersRes] = await Promise.all([
+      api('/api/users/teachers'),
+      api('/api/users')
+    ]);
+
+    const tbody = document.getElementById('admin-teachers-table-body');
+    const totalCountEl = document.getElementById('admin-teachers-total-count');
+    const activeCountEl = document.getElementById('admin-teachers-active-count');
+    const tableInfoEl = document.getElementById('teachers-table-info');
+    const studentSelect = document.getElementById('promote-student-select');
+
+    const teachers = (teachersRes.success && Array.isArray(teachersRes.data)) ? teachersRes.data : [];
+    const allUsers = (usersRes.success && Array.isArray(usersRes.data)) ? usersRes.data : [];
+    const students = allUsers.filter(u => u.role === 'Student');
+
+    if (totalCountEl) totalCountEl.textContent = teachers.length;
+    if (activeCountEl) activeCountEl.textContent = teachers.filter(t => t.isActive !== false).length;
+    if (tableInfoEl) tableInfoEl.textContent = `Jami: ${teachers.length} ta o'qituvchi`;
+
+    // Populate student select
+    if (studentSelect) {
+      studentSelect.innerHTML = `<option value="">Talabani tanlang (${students.length} ta mavjud)...</option>` + 
+        students.map(s => `<option value="${s.id}">${this.escapeHtml(s.fullName)} (${this.escapeHtml(s.email)})</option>`).join('');
+    }
+
+    if (teachers.length > 0) {
+      tbody.innerHTML = teachers.map(t => {
+        const createdDate = t.createdAt ? new Date(t.createdAt).toLocaleDateString('uz-UZ') : '-';
+        return `
+          <tr class="hover:bg-white/5 transition">
+            <td class="px-6 py-4 font-bold text-white flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-500 text-white flex items-center justify-center font-bold text-xs shadow-md shadow-indigo-600/30 shrink-0">
+                ${(t.fullName || 'T').charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div class="text-white font-bold">${this.escapeHtml(t.fullName)}</div>
+                <div class="text-[10px] text-indigo-300">👨‍🏫 O'qituvchi / Murabbiy</div>
+              </div>
+            </td>
+            <td class="px-6 py-4 text-gray-300 font-mono">${this.escapeHtml(t.email)}</td>
+            <td class="px-6 py-4 text-center font-bold text-white">
+              <span class="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10">
+                ${t.createdTestsCount || 0} ta test
+              </span>
+            </td>
+            <td class="px-6 py-4 text-center">
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center justify-center gap-1 w-fit mx-auto">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Faol
+              </span>
+            </td>
+            <td class="px-6 py-4 text-center text-gray-400">${createdDate}</td>
+            <td class="px-6 py-4 text-right">
+              <div class="flex items-center justify-end gap-1.5">
+                <button onclick="app.setUserRole('${t.id}', 'Student', '${this.escapeJs(t.fullName)}')" class="px-2.5 py-1 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-[11px] font-bold transition flex items-center gap-1" title="Talabaga tushirish">
+                  <span class="material-symbols-outlined text-[14px]">person</span> Talabaga qaytarish
+                </button>
+                <button onclick="app.deleteUser('${t.id}', '${this.escapeJs(t.fullName)}')" class="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition" title="O'chirish">
+                  <span class="material-symbols-outlined text-[16px]">delete</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    } else {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="p-12 text-center text-gray-500">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto mb-3">
+              <span class="material-symbols-outlined text-2xl">school</span>
+            </div>
+            <p class="font-bold text-gray-300">Hozircha o'qituvchilar yo'q.</p>
+            <p class="text-xs text-gray-500 mt-1">Yangi o'qituvchi qo'shing yoki mavjud talabalardan birini O'qituvchi etib tayinlang.</p>
+          </td>
+        </tr>
+      `;
+    }
+  },
+
+  handlePromoteSelectedStudent() {
+    const sel = document.getElementById('promote-student-select');
+    const studentId = sel ? sel.value : '';
+    if (!studentId) {
+      showToast('Iltimos, o\'qituvchi qilmoqchi bo\'lgan talabani tanlang!', 'info');
+      return;
+    }
+    const studentName = sel.options[sel.selectedIndex]?.text || 'Talaba';
+    this.setUserRole(studentId, 'Teacher', studentName.split('(')[0].trim());
+  },
+
+  openCreateTeacherModal() {
+    this.openModal(`
+      <div class="space-y-5">
+        <div class="flex items-center gap-3 border-b border-white/10 pb-4">
+          <div class="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+            <span class="material-symbols-outlined text-xl">person_add</span>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-white">Yangi O'qituvchi Yaratish</h3>
+            <p class="text-xs text-gray-400">O'qituvchi uchun login va parol ma'lumotlarini kiriting</p>
+          </div>
+        </div>
+
+        <form onsubmit="app.handleCreateTeacherSubmit(event)" class="space-y-4 text-left">
+          <div>
+            <label class="block text-xs font-semibold text-gray-300 mb-1.5">Ism va Familiya</label>
+            <input type="text" id="new-teacher-name" required placeholder="Masalan: Nodir Aliyev" class="w-full px-4 py-2.5 rounded-xl bg-surface-card border border-white/10 text-xs text-white focus:border-indigo-500 focus:outline-none placeholder-gray-500" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-300 mb-1.5">Email Manzil</label>
+            <input type="email" id="new-teacher-email" required placeholder="oqituvchi@maktab.uz" class="w-full px-4 py-2.5 rounded-xl bg-surface-card border border-white/10 text-xs text-white focus:border-indigo-500 focus:outline-none placeholder-gray-500" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-300 mb-1.5">Parol</label>
+            <input type="password" id="new-teacher-password" required minlength="6" placeholder="Kamida 6 ta belgi" class="w-full px-4 py-2.5 rounded-xl bg-surface-card border border-white/10 text-xs text-white focus:border-indigo-500 focus:outline-none placeholder-gray-500" />
+          </div>
+
+          <div class="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-[11px] text-indigo-200">
+            ℹ️ O'qituvchi o'z login va paroli bilan kirib, mustaqil testlar yaratishi, savollar import qilishi va o'quvchilar natijalarini ko'rishi mumkin.
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+            <button type="button" onclick="app.closeModal()" class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-semibold transition">
+              Bekor qilish
+            </button>
+            <button type="submit" id="create-teacher-btn" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/30">
+              <span class="material-symbols-outlined text-[16px]">save</span> Saqlash va Yaratish
+            </button>
+          </div>
+        </form>
+      </div>
+    `);
+  },
+
+  async handleCreateTeacherSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById('create-teacher-btn');
+    const fullName = document.getElementById('new-teacher-name')?.value.trim();
+    const email = document.getElementById('new-teacher-email')?.value.trim();
+    const password = document.getElementById('new-teacher-password')?.value;
+
+    if (!fullName || !email || !password) {
+      showToast('Barcha maydonlarni to\'ldiring!', 'error');
+      return;
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">sync</span> Yaratilmoqda...';
+    }
+
+    try {
+      const res = await api('/api/users/create-teacher', {
+        method: 'POST',
+        body: JSON.stringify({ fullName, email, password })
+      });
+
+      if (res && res.success) {
+        showToast(`🎉 Yangi o'qituvchi «${fullName}» muvaffaqiyatli yaratildi!`, 'success');
+        this.closeModal();
+        this.renderAdminTeachers();
+      } else {
+        showToast(res?.message || 'O\'qituvchi yaratishda xatolik', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Server bilan bog\'lanishda xatolik', 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span> Saqlash va Yaratish';
+      }
+    }
+  },
+
+  // ----------------------------------------------------
+  // TEACHER PORTAL & DASHBOARD
+  // ----------------------------------------------------
+  async renderTeacherDashboard() {
+    const root = document.getElementById('app-root');
+    const teacherName = state.user ? formatFullName(state.user.fullName) : 'O\'qituvchi';
+
+    root.innerHTML = `
+      <div class="space-y-6 animate-fadeIn pb-12">
+        ${this.getTeacherHeaderHtml('dashboard', `Xush kelibsiz, ${teacherName}! 👨‍🏫`, 'Testlaringiz, savollar to\'plami va o\'quvchilar natijalarini boshqarish markazi', '')}
+
+        <!-- Welcome Banner -->
+        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-900/60 via-blue-900/40 to-cyan-900/30 border border-indigo-500/30 p-6 sm:p-8 shadow-2xl">
+          <div class="relative z-10 max-w-2xl space-y-3">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold">
+              <span class="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
+              O'qituvchi Kabineti
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-black text-white">Bilimlarni baholash va yangi testlar yaratish</h2>
+            <p class="text-xs sm:text-sm text-gray-300 leading-relaxed">
+              O'z faningiz bo'yicha darajali testlar tuzing, savollarni JSON orqali ommaviy yuklang va talabalarning natijalarini real vaqtda kuzatib boring.
+            </p>
+            <div class="flex items-center gap-3 pt-2 flex-wrap">
+              <a href="#/teacher/add-test" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/30">
+                <span class="material-symbols-outlined text-[18px]">add_circle</span> Yangi Test Yaratish
+              </a>
+              <a href="#/teacher/bulk-import" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-gray-200 border border-white/15 font-semibold text-xs transition flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px]">upload_file</span> JSON Import
+              </a>
+              <a href="#/teacher/results" class="px-4 py-2.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 font-semibold text-xs transition flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px]">analytics</span> Natijalar
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 Stats Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="glass-card p-5 rounded-2xl border border-indigo-500/20 bg-indigo-500/5">
+            <div class="flex items-center justify-between text-indigo-400 mb-2">
+              <span class="text-xs font-semibold">Mening Testlarim</span>
+              <span class="material-symbols-outlined">quiz</span>
+            </div>
+            <div id="teacher-tests-count" class="text-2xl sm:text-3xl font-black text-white">...</div>
+            <div class="text-[10px] text-gray-400 mt-1">Platformadagi barcha testlar</div>
+          </div>
+
+          <div class="glass-card p-5 rounded-2xl border border-cyan-500/20 bg-cyan-500/5">
+            <div class="flex items-center justify-between text-cyan-400 mb-2">
+              <span class="text-xs font-semibold">Savollar Bazasi</span>
+              <span class="material-symbols-outlined">help</span>
+            </div>
+            <div id="teacher-questions-count" class="text-2xl sm:text-3xl font-black text-white">...</div>
+            <div class="text-[10px] text-gray-400 mt-1">Jami kiritilgan savollar</div>
+          </div>
+
+          <div class="glass-card p-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5">
+            <div class="flex items-center justify-between text-emerald-400 mb-2">
+              <span class="text-xs font-semibold">Talabalar Urinishlari</span>
+              <span class="material-symbols-outlined">how_to_reg</span>
+            </div>
+            <div id="teacher-attempts-count" class="text-2xl sm:text-3xl font-black text-white">...</div>
+            <div class="text-[10px] text-gray-400 mt-1">Topshirilgan testlar soni</div>
+          </div>
+
+          <div class="glass-card p-5 rounded-2xl border border-amber-500/20 bg-amber-500/5">
+            <div class="flex items-center justify-between text-amber-400 mb-2">
+              <span class="text-xs font-semibold">O'rtacha Ball</span>
+              <span class="material-symbols-outlined">stars</span>
+            </div>
+            <div id="teacher-avg-score" class="text-2xl sm:text-3xl font-black text-white">...</div>
+            <div class="text-[10px] text-gray-400 mt-1">Umumiy o'zlashtirish</div>
+          </div>
+        </div>
+
+        <!-- Recent Tests & Quick Actions Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <!-- Recent Tests (2 cols) -->
+          <div class="lg:col-span-2 glass-panel rounded-3xl border border-white/10 p-6 space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-indigo-400">format_list_bulleted</span>
+                <h3 class="text-base font-bold text-white">Testlar Ro'yxati</h3>
+              </div>
+              <a href="#/teacher/tests" class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1">
+                Barchasini ko'rish &rarr;
+              </a>
+            </div>
+
+            <div id="teacher-recent-tests" class="space-y-3">
+              <div class="p-6 text-center text-gray-500 text-xs">Testlar yuklanmoqda...</div>
+            </div>
+          </div>
+
+          <!-- Quick Navigation Card (1 col) -->
+          <div class="glass-panel rounded-3xl border border-white/10 p-6 space-y-4">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-indigo-400">bolt</span>
+              <h3 class="text-base font-bold text-white">Tezkor Amallar</h3>
+            </div>
+
+            <div class="space-y-2.5">
+              <a href="#/teacher/add-test" class="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition flex items-center gap-3 group">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                  <span class="material-symbols-outlined text-xl">add_box</span>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-white group-hover:text-indigo-300 transition">Yangi Test Tuzish</div>
+                  <div class="text-[10px] text-gray-400">Fan va daraja parametrlarini tanlash</div>
+                </div>
+              </a>
+
+              <a href="#/teacher/bulk-import" class="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition flex items-center gap-3 group">
+                <div class="w-10 h-10 rounded-xl bg-cyan-600/20 border border-cyan-500/30 text-cyan-300 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                  <span class="material-symbols-outlined text-xl">upload_file</span>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-white group-hover:text-cyan-300 transition">JSON Savollar Yuklash</div>
+                  <div class="text-[10px] text-gray-400">Ko'p sonli savollarni 1 soniyada yuklash</div>
+                </div>
+              </a>
+
+              <a href="#/teacher/subjects" class="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition flex items-center gap-3 group">
+                <div class="w-10 h-10 rounded-xl bg-amber-600/20 border border-amber-500/30 text-amber-300 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                  <span class="material-symbols-outlined text-xl">menu_book</span>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-white group-hover:text-amber-300 transition">Fanlar va Mavzular</div>
+                  <div class="text-[10px] text-gray-400">Fanlar katalogini ko'rish</div>
+                </div>
+              </a>
+
+              <a href="#/teacher/results" class="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition flex items-center gap-3 group">
+                <div class="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                  <span class="material-symbols-outlined text-xl">analytics</span>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-white group-hover:text-emerald-300 transition">O'quvchilar Baholari</div>
+                  <div class="text-[10px] text-gray-400">Test topshirgan talabalar ro'yxati</div>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Fetch dashboard and test data
+    const [dashRes, testsRes] = await Promise.all([
+      api('/api/dashboard/summary'),
+      api('/api/tests?pageSize=5')
+    ]);
+
+    const testsCountEl = document.getElementById('teacher-tests-count');
+    const questionsCountEl = document.getElementById('teacher-questions-count');
+    const attemptsCountEl = document.getElementById('teacher-attempts-count');
+    const avgScoreEl = document.getElementById('teacher-avg-score');
+    const recentTestsContainer = document.getElementById('teacher-recent-tests');
+
+    if (dashRes.success && dashRes.data) {
+      const d = dashRes.data;
+      if (testsCountEl) testsCountEl.textContent = d.totalTests || 0;
+      if (questionsCountEl) questionsCountEl.textContent = d.totalQuestions || 0;
+      if (attemptsCountEl) attemptsCountEl.textContent = d.totalAttempts || 0;
+      if (avgScoreEl) avgScoreEl.textContent = (d.averageScore || 0) + '%';
+    }
+
+    const testList = (testsRes.success && testsRes.data?.items) ? testsRes.data.items : [];
+    if (recentTestsContainer) {
+      if (testList.length > 0) {
+        recentTestsContainer.innerHTML = testList.map(t => {
+          const meta = getSubjectMeta(t.subjectName);
+          const diffBadge = t.difficulty === 'Easy' ? '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">Oson</span>'
+            : (t.difficulty === 'Hard' ? '<span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px] font-bold">Qiyin</span>'
+            : '<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold">O\'rta</span>');
+
+          return `
+            <div class="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition flex items-center justify-between gap-3">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-9 h-9 rounded-xl ${meta.glowBg} border border-white/10 flex items-center justify-center shrink-0" style="color: ${meta.colorHex}">
+                  <span class="material-symbols-outlined text-lg">${meta.icon}</span>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-xs font-bold text-white truncate">${this.escapeHtml(t.title)}</div>
+                  <div class="text-[10px] text-gray-400 flex items-center gap-2 mt-0.5">
+                    <span>${this.escapeHtml(t.subjectName || 'Fan')}</span>
+                    <span>•</span>
+                    <span>${t.questionsCount || 0} ta savol</span>
+                    <span>•</span>
+                    <span>${t.timeLimitMinutes || 20} daqiqa</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 shrink-0">
+                ${diffBadge}
+                <a href="#/teacher/add-question/${t.id}" class="p-1.5 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 transition text-[11px] font-bold flex items-center gap-1" title="Savollarni ko'rish / qo'shish">
+                  <span class="material-symbols-outlined text-[14px]">edit_note</span> Savollar
+                </a>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        recentTestsContainer.innerHTML = `
+          <div class="text-center py-6 text-gray-500 text-xs">
+            Hozircha testlar mavjud emas.
+            <a href="#/teacher/add-test" class="block mt-1 text-indigo-400 font-bold hover:underline">+ Birinchi testni yarating &rarr;</a>
+          </div>
+        `;
+      }
+    }
+  },
+
+  async renderTeacherTests(page = 1) {
+    const root = document.getElementById('app-root');
+    root.innerHTML = `
+      <div class="space-y-6 animate-fadeIn pb-12">
+        ${this.getTeacherHeaderHtml('tests', 'Mening Testlarim', 'Testlarni yaratish, savollarini tahrirlash va chop etish', '#/teacher')}
+
+        <!-- Actions Bar -->
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div class="flex items-center gap-2">
+            <a href="#/teacher/add-test" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md shadow-indigo-600/30">
+              <span class="material-symbols-outlined text-[16px]">add_circle</span> Yangi Test
+            </a>
+            <a href="#/teacher/bulk-import" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-gray-200 border border-white/15 text-xs font-semibold transition flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">upload_file</span> JSON Import
+            </a>
+          </div>
+          <div class="text-xs text-gray-400" id="teacher-tests-counter">Yuklanmoqda...</div>
+        </div>
+
+        <!-- Tests List Table -->
+        <div class="glass-panel rounded-3xl overflow-hidden border border-white/10">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-gray-300">
+              <thead class="bg-white/5 text-gray-400 uppercase font-semibold text-[10px]">
+                <tr>
+                  <th class="px-6 py-3.5">Test Nomi</th>
+                  <th class="px-6 py-3.5">Fani</th>
+                  <th class="px-6 py-3.5 text-center">Savollar</th>
+                  <th class="px-6 py-3.5 text-center">Vaqt</th>
+                  <th class="px-6 py-3.5 text-center">Holati</th>
+                  <th class="px-6 py-3.5 text-right">Amallar</th>
+                </tr>
+              </thead>
+              <tbody id="teacher-tests-table-body" class="divide-y divide-white/5">
+                <tr><td colspan="6" class="p-8 text-center text-gray-500">Yuklanmoqda...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const res = await api('/api/tests?pageSize=50');
+    const tbody = document.getElementById('teacher-tests-table-body');
+    const counter = document.getElementById('teacher-tests-counter');
+    const tests = (res.success && res.data?.items) ? res.data.items : [];
+
+    if (counter) counter.textContent = `Jami: ${tests.length} ta test`;
+
+    if (tests.length > 0) {
+      tbody.innerHTML = tests.map(t => {
+        const meta = getSubjectMeta(t.subjectName);
+        return `
+          <tr class="hover:bg-white/5 transition">
+            <td class="px-6 py-4 font-bold text-white">
+              <div class="flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg ${meta.glowBg} flex items-center justify-center shrink-0" style="color: ${meta.colorHex}">
+                  <span class="material-symbols-outlined text-[16px]">${meta.icon}</span>
+                </div>
+                <span>${this.escapeHtml(t.title)}</span>
+              </div>
+            </td>
+            <td class="px-6 py-4 text-gray-300 font-medium">${this.escapeHtml(t.subjectName || '-')}</td>
+            <td class="px-6 py-4 text-center font-bold text-white">
+              <span class="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10">${t.questionsCount || 0} ta</span>
+            </td>
+            <td class="px-6 py-4 text-center text-gray-400">${t.timeLimitMinutes || 20} daqiqa</td>
+            <td class="px-6 py-4 text-center">
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${t.isPublished ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}">
+                ${t.isPublished ? 'Chop etilgan' : 'Qoralama'}
+              </span>
+            </td>
+            <td class="px-6 py-4 text-right">
+              <div class="flex items-center justify-end gap-1.5">
+                <a href="#/teacher/add-question/${t.id}" class="px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 text-[11px] font-bold transition flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[14px]">edit_note</span> Savollar (${t.questionsCount || 0})
+                </a>
+                <a href="#/teacher/edit-test/${t.id}" class="p-1.5 rounded-lg bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white transition" title="Tahrirlash">
+                  <span class="material-symbols-outlined text-[16px]">edit</span>
+                </a>
+                <button onclick="app.deleteTeacherTest('${t.id}', '${this.escapeJs(t.title)}')" class="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition" title="O'chirish">
+                  <span class="material-symbols-outlined text-[16px]">delete</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    } else {
+      tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-500">Testlar topilmadi. <a href="#/teacher/add-test" class="text-indigo-400 font-bold hover:underline">+ Yangi test qo'shing</a></td></tr>`;
+    }
+  },
+
+  deleteTeacherTest(testId, title) {
+    this.confirmModal({
+      title: "Testni O'chirish",
+      message: `«${title}» nomli testni va uning barcha savollarini o'chirmoqchimisiz?`,
+      confirmText: "Ha, O'chirish",
+      cancelText: "Bekor Qilish",
+      icon: "delete",
+      type: "danger",
+      onConfirm: async () => {
+        const res = await api(`/api/tests/${testId}`, { method: 'DELETE' });
+        if (res && res.success) {
+          showToast('Test muvaffaqiyatli o\'chirildi! 🗑️', 'success');
+          app.renderTeacherTests();
+        } else {
+          showToast(res?.message || 'O\'chirishda xatolik', 'error');
+        }
+      }
+    });
+  },
+
+  async renderTeacherAddTest() {
+    const root = document.getElementById('app-root');
+    root.innerHTML = `
+      <div class="space-y-6 animate-fadeIn pb-12">
+        ${this.getTeacherHeaderHtml('add-test', 'Yangi Test Yaratish', 'Test fani, sarlavhasi va vaqt mezonlarini kiriting', '#/teacher/tests')}
+
+        <div class="max-w-2xl mx-auto glass-panel p-6 sm:p-8 rounded-3xl border border-white/10">
+          <form onsubmit="app.handleTeacherCreateTestSubmit(event)" class="space-y-4 text-left">
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1.5">Fanni tanlang *</label>
+              <select id="teacher-test-subject" required class="w-full px-4 py-2.5 rounded-xl bg-surface-card border border-white/10 text-xs text-white focus:border-indigo-500 focus:outline-none">
+                <option value="">Fan yuklanmoqda...</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1.5">Test Sarlavhasi *</label>
+              <input type="text" id="teacher-test-title" required placeholder="Masalan: 9-sinf Fizika 1-chorak nazorati" class="w-full px-4 py-2.5 rounded-xl bg-surface-card border border-white/10 text-xs text-white focus:border-indigo-500 focus:outline-none" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-gray-300 mb-1.5">Qisqa Tavsif</label>
+              <textarea id="teacher-test-desc" rows="2" placeholder="Ushbu test nimalarni qamrab olgan..." class="w-full px-4 py-2.5 rounded-xl bg-surface-card border border-white/10 text-xs text-white focus:border-indigo-500 focus:outline-none"></textarea>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-gray-300 mb-1.5">Vaqt (Daqiqa)</label>
+                <input type="number" id="teacher-test-time" value="20" min="5" max="180" class="w-full px-4 py-2.5 rounded-xl bg-surface-card border border-white/10 text-xs text-white focus:border-indigo-500 focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-300 mb-1.5">O'tish Bali (%)</label>
+                <input type="number" id="teacher-test-pass" value="60" min="1" max="100" class="w-full px-4 py-2.5 rounded-xl bg-surface-card border border-white/10 text-xs text-white focus:border-indigo-500 focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-300 mb-1.5">Murakkablik</label>
+                <select id="teacher-test-diff" class="w-full px-4 py-2.5 rounded-xl bg-surface-card border border-white/10 text-xs text-white focus:border-indigo-500 focus:outline-none">
+                  <option value="Easy">Boshlang'ich (Easy)</option>
+                  <option value="Medium" selected>O'rta (Medium)</option>
+                  <option value="Hard">Murakkab (Hard)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-white/10 flex items-center justify-end gap-2">
+              <a href="#/teacher/tests" class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-semibold transition">
+                Bekor qilish
+              </a>
+              <button type="submit" id="teacher-create-test-btn" class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/30">
+                <span class="material-symbols-outlined text-[16px]">save</span> Testni Yaratish &rarr;
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    // Populate subjects
+    const subjectsRes = await api('/api/subjects');
+    const subjSelect = document.getElementById('teacher-test-subject');
+    if (subjSelect && subjectsRes.success && Array.isArray(subjectsRes.data)) {
+      subjSelect.innerHTML = '<option value="">Fanni tanlang...</option>' + 
+        subjectsRes.data.map(s => `<option value="${s.id}">${this.escapeHtml(s.name)}</option>`).join('');
+    }
+  },
+
+  async handleTeacherCreateTestSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById('teacher-create-test-btn');
+    const subjectId = document.getElementById('teacher-test-subject')?.value;
+    const title = document.getElementById('teacher-test-title')?.value.trim();
+    const description = document.getElementById('teacher-test-desc')?.value.trim() || '';
+    const timeLimitMinutes = parseInt(document.getElementById('teacher-test-time')?.value) || 20;
+    const passingPercentage = parseInt(document.getElementById('teacher-test-pass')?.value) || 60;
+    const rawDiff = document.getElementById('teacher-test-diff')?.value || 'Medium';
+    const diffMap = { 'Easy': 1, 'Medium': 2, 'Hard': 3, '1': 1, '2': 2, '3': 3 };
+    const difficulty = diffMap[rawDiff] || 2;
+
+    if (!subjectId || !title) {
+      showToast('Fan va test sarlavhasini kiriting!', 'error');
+      return;
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">sync</span> Yaratilmoqda...';
+    }
+
+    try {
+      const res = await api('/api/tests', {
+        method: 'POST',
+        body: JSON.stringify({
+          subjectId,
+          title,
+          description,
+          timeLimitMinutes,
+          passingPercentage,
+          difficulty,
+          isPublished: true,
+          isPremiumOnly: false,
+          maxAttemptsPerStudent: 3,
+          showCorrectAnswers: true,
+          showReviewAfterSubmit: true
+        })
+      });
+
+      if (res && res.success) {
+        showToast('🎉 Yangi test muvaffaqiyatli yaratildi! Endi unga savollar qo\'shishingiz mumkin.', 'success');
+        const testId = res.data?.id;
+        window.location.hash = testId ? `#/teacher/add-question/${testId}` : '#/teacher/tests';
+      } else {
+        showToast(res?.message || 'Test yaratishda xatolik', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Server bilan bog\'lanishda xatolik', 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span> Testni Yaratish &rarr;';
+      }
+    }
+  },
+
+  async renderTeacherEditTest(testId) {
+    this.renderAdminEditTest(testId);
+  },
+
+  async renderTeacherAddQuestion(testId) {
+    // Teacher add question redirects to unified quiz creator with teacher header
+    this.renderAdminAddQuestion(testId);
+  },
+
+  async renderTeacherBulkImport(testId = '') {
+    this.renderAdminBulkImport(testId);
+  },
+
+  async renderTeacherSubjects() {
+    const root = document.getElementById('app-root');
+    root.innerHTML = `
+      <div class="space-y-6 animate-fadeIn pb-12">
+        ${this.getTeacherHeaderHtml('subjects', 'Fanlar va Yo\'nalishlar', 'Platformadagi barcha fanlar va mavzular katalogi', '#/teacher')}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="teacher-subjects-grid">
+          <div class="p-8 text-center text-gray-500 col-span-full">Fanlar yuklanmoqda...</div>
+        </div>
+      </div>
+    `;
+
+    const res = await api('/api/subjects');
+    const container = document.getElementById('teacher-subjects-grid');
+    const subjects = (res.success && Array.isArray(res.data)) ? res.data : [];
+
+    if (container) {
+      if (subjects.length > 0) {
+        container.innerHTML = subjects.map(s => {
+          const meta = getSubjectMeta(s.name);
+          return `
+            <div class="glass-card p-5 rounded-2xl border border-white/10 hover:border-indigo-500/30 transition group flex flex-col justify-between">
+              <div>
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 rounded-xl ${meta.glowBg} flex items-center justify-center shrink-0 group-hover:scale-105 transition" style="color: ${meta.colorHex}">
+                    <span class="material-symbols-outlined text-xl">${meta.icon}</span>
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-bold text-white group-hover:text-indigo-300 transition">${this.escapeHtml(s.name)}</h4>
+                    <span class="text-[10px] text-gray-400">${s.testsCount || 0} ta test tuzilgan</span>
+                  </div>
+                </div>
+                <p class="text-xs text-gray-400 leading-relaxed mb-4">${this.escapeHtml(s.description || 'Ushbu fan bo\'yicha barcha nazorat va sinov testlari')}</p>
+              </div>
+
+              <div class="pt-3 border-t border-white/10 flex items-center justify-between">
+                <a href="#/teacher/add-test" class="text-xs text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1">
+                  + Ushbu fanga test tuzish &rarr;
+                </a>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        container.innerHTML = `<div class="p-8 text-center text-gray-500 col-span-full">Fanlar topilmadi.</div>`;
+      }
+    }
+  },
+
+  async renderTeacherResults() {
+    const root = document.getElementById('app-root');
+    root.innerHTML = `
+      <div class="space-y-6 animate-fadeIn pb-12">
+        ${this.getTeacherHeaderHtml('results', 'O\'quvchilar Test Natijalari', 'Talabalarning topshirgan testlari, to\'plagan ballari va muvaffaqiyat ko\'rsatkichlari', '#/teacher')}
+
+        <div class="glass-panel rounded-3xl overflow-hidden border border-white/10">
+          <div class="p-4 border-b border-white/10 flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-emerald-400">task_alt</span>
+              <span class="text-sm font-bold text-white">So'nggi Topshirilgan Urinishlar</span>
+            </div>
+            <span class="text-xs text-gray-400" id="teacher-results-info">Yuklanmoqda...</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-gray-300">
+              <thead class="bg-white/5 text-gray-400 uppercase font-semibold text-[10px]">
+                <tr>
+                  <th class="px-6 py-3.5">Talaba</th>
+                  <th class="px-6 py-3.5">Test Nomi</th>
+                  <th class="px-6 py-3.5 text-center">Natija (%)</th>
+                  <th class="px-6 py-3.5 text-center">Holat</th>
+                  <th class="px-6 py-3.5 text-center">Topshirilgan Vaqt</th>
+                  <th class="px-6 py-3.5 text-right">Tahlil</th>
+                </tr>
+              </thead>
+              <tbody id="teacher-results-table-body" class="divide-y divide-white/5">
+                <tr><td colspan="6" class="p-8 text-center text-gray-500">Yuklanmoqda...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Fetch dashboard summary for recent attempts
+    const res = await api('/api/dashboard/summary');
+    const tbody = document.getElementById('teacher-results-table-body');
+    const infoEl = document.getElementById('teacher-results-info');
+    const attempts = (res.success && res.data?.recentAttempts) ? res.data.recentAttempts : [];
+
+    if (infoEl) infoEl.textContent = `Jami: ${attempts.length} ta so'nggi topshirish`;
+
+    if (attempts.length > 0) {
+      tbody.innerHTML = attempts.map(a => {
+        const submittedDate = a.submittedAt ? new Date(a.submittedAt).toLocaleString('uz-UZ') : '-';
+        const isPassed = a.isPassed || (a.percentage >= 60);
+        return `
+          <tr class="hover:bg-white/5 transition">
+            <td class="px-6 py-4 font-bold text-white flex items-center gap-2">
+              <div class="w-7 h-7 rounded-lg bg-blue-600/30 border border-blue-500/40 text-blue-300 flex items-center justify-center font-bold text-xs shrink-0">
+                ${(a.studentName || 'T').charAt(0).toUpperCase()}
+              </div>
+              <span>${this.escapeHtml(a.studentName || 'Talaba')}</span>
+            </td>
+            <td class="px-6 py-4 text-gray-300 font-medium">${this.escapeHtml(a.testTitle || 'Test')}</td>
+            <td class="px-6 py-4 text-center font-black text-white">
+              <span class="px-2.5 py-1 rounded-lg ${isPassed ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">
+                ${Math.round(a.percentage || 0)}%
+              </span>
+            </td>
+            <td class="px-6 py-4 text-center">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isPassed ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}">
+                ${isPassed ? '✅ O\'tdi' : '❌ Yiqildi'}
+              </span>
+            </td>
+            <td class="px-6 py-4 text-center text-gray-400 text-[11px]">${submittedDate}</td>
+            <td class="px-6 py-4 text-right">
+              <a href="#/result/${a.id}" class="px-3 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 font-bold text-[11px] transition inline-flex items-center gap-1">
+                <span class="material-symbols-outlined text-[14px]">visibility</span> Ko'rish
+              </a>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    } else {
+      tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-500">Hozircha test topshirgan talabalar mavjud emas.</td></tr>`;
+    }
   },
 
   // ----------------------------------------------------

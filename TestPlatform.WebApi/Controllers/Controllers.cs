@@ -96,7 +96,7 @@ namespace TestPlatform.WebApi.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Teacher")]
         public async Task<IActionResult> Create([FromBody] CreateSubjectDto dto)
         {
             var res = await _subjectService.CreateSubjectAsync(dto);
@@ -104,7 +104,7 @@ namespace TestPlatform.WebApi.Controllers
         }
 
         [HttpPut("{id:guid}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Teacher")]
         public async Task<IActionResult> Update(Guid id, [FromBody] CreateSubjectDto dto)
         {
             var res = await _subjectService.UpdateSubjectAsync(id, dto);
@@ -113,7 +113,7 @@ namespace TestPlatform.WebApi.Controllers
         }
 
         [HttpDelete("{id:guid}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Teacher")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var res = await _subjectService.DeleteSubjectAsync(id);
@@ -133,7 +133,7 @@ namespace TestPlatform.WebApi.Controllers
         public async Task<IActionResult> GetBySubject(Guid subjectId) => Ok(await _topicService.GetTopicsBySubjectAsync(subjectId));
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Teacher")]
         public async Task<IActionResult> Create([FromBody] CreateTopicDto dto) => Ok(await _topicService.CreateTopicAsync(dto));
     }
 
@@ -165,9 +165,11 @@ namespace TestPlatform.WebApi.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin,Teacher")]
         public async Task<IActionResult> CreateTest([FromBody] CreateTestDto dto) => Ok(await _testService.CreateTestAsync(dto));
 
         [HttpPut("{id:guid}")]
+        [Authorize(Roles = "Admin,Teacher")]
         public async Task<IActionResult> UpdateTest(Guid id, [FromBody] CreateTestDto dto)
         {
             var res = await _testService.UpdateTestAsync(id, dto);
@@ -176,6 +178,7 @@ namespace TestPlatform.WebApi.Controllers
         }
 
         [HttpPatch("{id:guid}/publish")]
+        [Authorize(Roles = "Admin,Teacher")]
         public async Task<IActionResult> PublishTest(Guid id, [FromQuery] bool isPublished = true)
         {
             var res = await _testService.PublishTestAsync(id, isPublished);
@@ -184,6 +187,7 @@ namespace TestPlatform.WebApi.Controllers
         }
 
         [HttpDelete("{id:guid}")]
+        [Authorize(Roles = "Admin,Teacher")]
         public async Task<IActionResult> DeleteTest(Guid id)
         {
             var res = await _testService.DeleteTestAsync(id);
@@ -192,6 +196,7 @@ namespace TestPlatform.WebApi.Controllers
         }
 
         [HttpPost("{id:guid}/questions")]
+        [Authorize(Roles = "Admin,Teacher")]
         public async Task<IActionResult> AddQuestion(Guid id, [FromBody] CreateQuestionDto dto)
         {
             var res = await _questionService.AddQuestionAsync(id, dto);
@@ -200,6 +205,7 @@ namespace TestPlatform.WebApi.Controllers
         }
 
         [HttpPut("{id:guid}/questions/{questionId:guid}")]
+        [Authorize(Roles = "Admin,Teacher")]
         public async Task<IActionResult> UpdateQuestion(Guid id, Guid questionId, [FromBody] CreateQuestionDto dto)
         {
             var res = await _questionService.UpdateQuestionAsync(questionId, dto);
@@ -208,6 +214,7 @@ namespace TestPlatform.WebApi.Controllers
         }
 
         [HttpDelete("{id:guid}/questions/{questionId:guid}")]
+        [Authorize(Roles = "Admin,Teacher")]
         public async Task<IActionResult> DeleteQuestion(Guid id, Guid questionId)
         {
             var res = await _questionService.DeleteQuestionAsync(questionId);
@@ -216,6 +223,7 @@ namespace TestPlatform.WebApi.Controllers
         }
 
         [HttpPost("{id:guid}/questions/import")]
+        [Authorize(Roles = "Admin,Teacher")]
         public async Task<IActionResult> BulkImport(Guid id, [FromBody] BulkImportQuestionsDto dto)
         {
             var res = await _questionService.BulkImportQuestionsAsync(id, dto);
@@ -450,6 +458,113 @@ namespace TestPlatform.WebApi.Controllers
                 .ToListAsync();
 
             return Ok(new { success = true, statusCode = 200, message = "Foydalanuvchilar ro'yxati", data = users });
+        }
+
+        [HttpGet("teachers")]
+        [Authorize(Roles = "Admin,Teacher")]
+        public async Task<IActionResult> GetTeachers()
+        {
+            var testsCount = await _db.Tests.CountAsync();
+            var questionsCount = await _db.Questions.CountAsync();
+            var teachers = await _db.Users
+                .Where(u => u.Role == UserRole.Teacher)
+                .OrderByDescending(u => u.CreatedAt)
+                .Select(u => new TeacherUserDto
+                {
+                    Id = u.Id,
+                    FullName = u.FullName,
+                    Email = u.Email,
+                    Role = u.Role.ToString(),
+                    IsActive = u.IsActive,
+                    CreatedAt = u.CreatedAt,
+                    CreatedTestsCount = testsCount,
+                    TotalQuestionsCount = questionsCount
+                })
+                .ToListAsync();
+
+            return Ok(new { success = true, statusCode = 200, message = "O'qituvchilar ro'yxati", data = teachers });
+        }
+
+        [HttpPost("create-teacher")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateTeacher([FromBody] CreateTeacherDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.FullName) || string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
+                return BadRequest(new { success = false, message = "Ism, email va parol kiritilishi shart" });
+
+            var email = dto.Email.Trim().ToLower();
+            if (await _db.Users.AnyAsync(u => u.Email.ToLower() == email))
+                return BadRequest(new { success = false, message = "Ushbu email bilan foydalanuvchi allaqachon mavjud" });
+
+            var teacher = new User
+            {
+                FullName = dto.FullName.Trim(),
+                Email = email,
+                PasswordHash = PasswordHasher.HashPassword(dto.Password),
+                Role = UserRole.Teacher,
+                IsActive = true
+            };
+
+            _db.Users.Add(teacher);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { 
+                success = true, 
+                statusCode = 200, 
+                message = "Yangi o'qituvchi muvaffaqiyatli yaratildi", 
+                data = new TeacherUserDto
+                {
+                    Id = teacher.Id,
+                    FullName = teacher.FullName,
+                    Email = teacher.Email,
+                    Role = "Teacher",
+                    IsActive = teacher.IsActive,
+                    CreatedAt = teacher.CreatedAt
+                } 
+            });
+        }
+
+        [HttpPut("{id:guid}/set-role")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> SetUserRole(Guid id, [FromBody] SetUserRoleDto dto)
+        {
+            var user = await _db.Users.FindAsync(id);
+            if (user == null)
+                return NotFound(new { success = false, message = "Foydalanuvchi topilmadi" });
+
+            if (Enum.TryParse<UserRole>(dto.Role, true, out var role))
+            {
+                user.Role = role;
+                user.UpdatedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
+                return Ok(new { 
+                    success = true, 
+                    message = $"Foydalanuvchi roli '{role}' ga o'zgartirildi", 
+                    data = new { user.Id, user.FullName, user.Email, Role = user.Role.ToString() } 
+                });
+            }
+
+            return BadRequest(new { success = false, message = "Noto'g'ri rol kiritildi (Admin, Teacher, Student)" });
+        }
+
+        [HttpGet("stats")]
+        [Authorize(Roles = "Admin,Teacher")]
+        public async Task<IActionResult> GetUserStats()
+        {
+            var totalUsers = await _db.Users.CountAsync();
+            var totalStudents = await _db.Users.CountAsync(u => u.Role == UserRole.Student);
+            var totalTeachers = await _db.Users.CountAsync(u => u.Role == UserRole.Teacher);
+            var totalAdmins = await _db.Users.CountAsync(u => u.Role == UserRole.Admin);
+
+            return Ok(new {
+                success = true,
+                data = new {
+                    totalUsers,
+                    totalStudents,
+                    totalTeachers,
+                    totalAdmins
+                }
+            });
         }
 
         [HttpDelete("{id:guid}")]

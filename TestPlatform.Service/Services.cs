@@ -183,7 +183,14 @@ namespace TestPlatform.Service
 
         public async Task SeedDefaultAdminAsync()
         {
-            var admin = await _db.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Admin);
+            var dummyAdmin = await _db.Users.FirstOrDefaultAsync(u => u.Email == "admin@testplatform.com");
+            if (dummyAdmin != null)
+            {
+                _db.Users.Remove(dummyAdmin);
+                await _db.SaveChangesAsync();
+            }
+
+            var admin = await _db.Users.FirstOrDefaultAsync(u => u.Email == "behruzsagdullayev0707@gmail.com");
             if (admin == null)
             {
                 admin = new User
@@ -202,6 +209,7 @@ namespace TestPlatform.Service
                 admin.FullName = "Behruz Sagdullayev";
                 admin.Email = "behruzsagdullayev0707@gmail.com";
                 admin.PasswordHash = PasswordHasher.HashPassword("10021978");
+                admin.Role = UserRole.Admin;
                 admin.IsActive = true;
                 await _db.SaveChangesAsync();
             }

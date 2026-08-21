@@ -531,5 +531,31 @@ namespace TestPlatform.Service.DTOs
         public DateTime CreatedAt { get; set; }
         public DateTime? ExpiresAt { get; set; }
     }
+
+    // Teacher Management DTOs
+    public class CreateTeacherDto
+    {
+        public string FullName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+
+    public class SetUserRoleDto
+    {
+        public string Role { get; set; } = "Teacher"; // Admin, Teacher, Student
+    }
+
+    public class TeacherUserDto
+    {
+        public Guid Id { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Role { get; set; } = "Teacher";
+        public bool IsActive { get; set; }
+        public int CreatedTestsCount { get; set; }
+        public int TotalQuestionsCount { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
 }
+
 
