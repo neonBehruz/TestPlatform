@@ -8743,7 +8743,7 @@ const app = {
   // ----------------------------------------------------
   // ADMIN: AUDIT LOGS
   // ----------------------------------------------------
-  async renderAdminAuditLogs() {
+  async renderAdminAuditLogs(page = 1) {
     const root = document.getElementById('app-root');
     root.innerHTML = `
       <div class="space-y-6 animate-fadeIn pb-12">
