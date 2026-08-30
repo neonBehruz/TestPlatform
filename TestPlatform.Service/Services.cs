@@ -275,6 +275,22 @@ namespace TestPlatform.Service
                 admin.IsActive = true;
                 await _db.SaveChangesAsync();
             }
+
+            var student = await _db.Users.FirstOrDefaultAsync(u => u.Email == "talaba@gmail.com");
+            if (student == null)
+            {
+                student = new User
+                {
+                    FullName = "Ali Valiyev (Talaba Demo)",
+                    Email = "talaba@gmail.com",
+                    PhoneNumber = "+998 90 123 45 67",
+                    PasswordHash = PasswordHasher.HashPassword("123456"),
+                    Role = UserRole.Student,
+                    IsActive = true
+                };
+                _db.Users.Add(student);
+                await _db.SaveChangesAsync();
+            }
         }
 
         public async Task<ApiResponse<AuthResponseDto>> RegisterAsync(RegisterDto dto)

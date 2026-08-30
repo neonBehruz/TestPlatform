@@ -2195,6 +2195,19 @@ const app = {
             </div>
           </div>
 
+          <!-- Tezkor Demo Kirish (Admin va O'quvchi) -->
+          <div class="space-y-1.5 pt-1">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 text-center">Tezkor Demo Kirish:</div>
+            <div class="grid grid-cols-2 gap-2.5">
+              <button type="button" onclick="app.quickFillLogin('admin')" class="px-3 py-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/25 text-blue-300 hover:text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98]">
+                <span>🛡️</span> Admin Demo
+              </button>
+              <button type="button" onclick="app.quickFillLogin('student')" class="px-3 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/25 text-purple-300 hover:text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98]">
+                <span>🎓</span> O'quvchi Demo
+              </button>
+            </div>
+          </div>
+
           <!-- Login Form -->
           <form id="login-form" onsubmit="app.handleLoginSubmit(event)" class="space-y-4 pt-1">
             <div>
@@ -2245,6 +2258,21 @@ const app = {
         </div>
       </div>
     `;
+  },
+
+  quickFillLogin(role) {
+    const emailEl = document.getElementById('login-email');
+    const passEl = document.getElementById('login-password');
+    if (!emailEl || !passEl) return;
+    if (role === 'admin') {
+      emailEl.value = 'behruzsagdullayev0707@gmail.com';
+      passEl.value = '10021978';
+      showToast('🛡️ Administrator demo ma\'lumotlari kiritildi!', 'info');
+    } else {
+      emailEl.value = 'talaba@gmail.com';
+      passEl.value = '123456';
+      showToast('🎓 O\'quvchi demo ma\'lumotlari kiritildi!', 'info');
+    }
   },
 
   renderRegister() {
