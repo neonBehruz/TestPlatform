@@ -1,1 +1,181 @@
-[]
+{
+  "subjects": [
+    {
+      "subject": "Dasturlash (IT & Python)",
+      "questions": [
+        {
+          "id": 1,
+          "question": "Python dasturlash tilida ro'yxat (list) oxiriga element qo'shish uchun qaysi metod ishlatiladi?",
+          "points": 2,
+          "difficulty": "easy",
+          "correctAnswer": "append()",
+          "options": ["append()", "push()", "insert()", "add()"]
+        },
+        {
+          "id": 2,
+          "question": "JavaScriptda o'zgarmas (constant) o'zgaruvchi e'lon qilish uchun qaysi kalit so'z ishlatiladi?",
+          "points": 2,
+          "difficulty": "easy",
+          "correctAnswer": "const",
+          "options": ["const", "let", "var", "static"]
+        },
+        {
+          "id": 3,
+          "question": "Web sahifalarning tuzilishi (strukturasi) qaysi texnologiya yordamida yaratiladi?",
+          "points": 2,
+          "difficulty": "easy",
+          "correctAnswer": "HTML",
+          "options": ["HTML", "CSS", "JavaScript", "SQL"]
+        },
+        {
+          "id": 4,
+          "question": "Quyidagilardan qaysi biri relyatsion ma'lumotlar bazasi hisoblanadi?",
+          "points": 2,
+          "difficulty": "medium",
+          "correctAnswer": "PostgreSQL",
+          "options": ["PostgreSQL", "MongoDB", "Redis", "Cassandra"]
+        },
+        {
+          "id": 5,
+          "question": "HTTP protokoli bo'yicha ma'lumotlarni serverga yangi resurs yaratish uchun yuborishda qaysi metod qo'llaniladi?",
+          "points": 2,
+          "difficulty": "medium",
+          "correctAnswer": "POST",
+          "options": ["POST", "GET", "DELETE", "OPTIONS"]
+        },
+        {
+          "id": 6,
+          "question": "Algoritmlarning vaqt bo'yicha murakkabligini ifodalash uchun nima ishlatiladi?",
+          "points": 3,
+          "difficulty": "hard",
+          "correctAnswer": "Big-O notatsiyasi",
+          "options": ["Big-O notatsiyasi", "Fibonacci qatori", "Binary Tree", "Stack Overflow"]
+        }
+      ]
+    },
+    {
+      "subject": "Oliy Matematika",
+      "questions": [
+        {
+          "id": 1,
+          "question": "f(x) = x^3 funksiyaning hosilasi nimaga teng?",
+          "points": 2,
+          "difficulty": "easy",
+          "correctAnswer": "3x^2",
+          "options": ["3x^2", "x^2", "3x", "2x^3"]
+        },
+        {
+          "id": 2,
+          "question": "sin^2(x) + cos^2(x) ifodaning qiymati nimaga teng?",
+          "points": 2,
+          "difficulty": "easy",
+          "correctAnswer": "1",
+          "options": ["1", "0", "-1", "2"]
+        },
+        {
+          "id": 3,
+          "question": "To'g'ri burchakli uchburchakda katetlar 3 va 4 bo'lsa, gipotenuza uzunligi qancha?",
+          "points": 2,
+          "difficulty": "easy",
+          "correctAnswer": "5",
+          "options": ["5", "6", "7", "4.5"]
+        },
+        {
+          "id": 4,
+          "question": "2x + 6 = 14 tenglamaning yechimini toping.",
+          "points": 2,
+          "difficulty": "medium",
+          "correctAnswer": "x = 4",
+          "options": ["x = 4", "x = 5", "x = 3", "x = 6"]
+        },
+        {
+          "id": 5,
+          "question": "e^(ln(x)) ifodaning soddalashtirilgan shakli nima?",
+          "points": 3,
+          "difficulty": "hard",
+          "correctAnswer": "x",
+          "options": ["x", "1", "e", "ln(x)"]
+        }
+      ]
+    },
+    {
+      "subject": "Ingliz Tili (IELTS / CEFR)",
+      "questions": [
+        {
+          "id": 1,
+          "question": "Choose the correct verb: 'She ____ to school every single morning.'",
+          "points": 2,
+          "difficulty": "easy",
+          "correctAnswer": "goes",
+          "options": ["goes", "go", "going", "gone"]
+        },
+        {
+          "id": 2,
+          "question": "What is the synonym of the word 'BENEFICIAL'?",
+          "points": 2,
+          "difficulty": "easy",
+          "correctAnswer": "Helpful",
+          "options": ["Helpful", "Harmful", "Difficult", "Useless"]
+        },
+        {
+          "id": 3,
+          "question": "Complete the sentence: 'If I ____ enough money, I would travel around the world.'",
+          "points": 2,
+          "difficulty": "medium",
+          "correctAnswer": "had",
+          "options": ["had", "have", "will have", "would have"]
+        },
+        {
+          "id": 4,
+          "question": "Which sentence is grammatically correct in Passive Voice?",
+          "points": 2,
+          "difficulty": "medium",
+          "correctAnswer": "The report was written by the manager.",
+          "options": [
+            "The report was written by the manager.",
+            "The report wrote by the manager.",
+            "The report has written by the manager.",
+            "The manager was written the report."
+          ]
+        },
+        {
+          "id": 5,
+          "question": "Choose the antonym of the word 'ABUNDANT':",
+          "points": 3,
+          "difficulty": "hard",
+          "correctAnswer": "Scarce",
+          "options": ["Scarce", "Plentiful", "Generous", "Huge"]
+        }
+      ]
+    },
+    {
+      "subject": "Fizika & Astronomiya",
+      "questions": [
+        {
+          "id": 1,
+          "question": "Nyutonning ikkinchi qonuni formulasini ko'rsating:",
+          "points": 2,
+          "difficulty": "easy",
+          "correctAnswer": "F = m * a",
+          "options": ["F = m * a", "E = m * c^2", "P = F / S", "v = s / t"]
+        },
+        {
+          "id": 2,
+          "question": "Vakuumda yorug'lik tezligi taxminan qanchaga teng?",
+          "points": 2,
+          "difficulty": "easy",
+          "correctAnswer": "300 000 km/s",
+          "options": ["300 000 km/s", "150 000 km/s", "30 000 km/s", "3 000 000 km/s"]
+        },
+        {
+          "id": 3,
+          "question": "Elektr tok kuchining Xalqaro birliklar sistemasidagi (SI) o'lchov birligi nima?",
+          "points": 2,
+          "difficulty": "easy",
+          "correctAnswer": "Amper (A)",
+          "options": ["Amper (A)", "Volt (V)", "Om (Ω)", "Vatt (W)"]
+        }
+      ]
+    }
+  ]
+}
