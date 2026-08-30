@@ -2278,104 +2278,166 @@ const app = {
         <!-- Luxury Glassmorphic Card -->
         <div class="relative z-10 p-7 sm:p-9 rounded-3xl bg-[#0b0e1b]/85 backdrop-blur-2xl border border-white/15 shadow-[0_0_60px_rgba(0,0,0,0.6)] ring-1 ring-white/10 space-y-6">
           
-          <!-- Top Header -->
-          <div class="text-center space-y-3">
-            <div class="inline-flex relative group">
-              <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 via-blue-500 to-cyan-500 p-0.5 shadow-2xl shadow-indigo-500/30 group-hover:scale-105 transition-transform duration-300">
-                <div class="w-full h-full bg-[#0d101d] rounded-2xl flex items-center justify-center">
-                  <span class="material-symbols-outlined text-transparent bg-clip-text bg-gradient-to-tr from-indigo-300 via-blue-300 to-cyan-300 text-3xl">person_add</span>
+          <!-- STEP 1: Registration Form -->
+          <div id="reg-step-1" class="space-y-6">
+            <!-- Top Header -->
+            <div class="text-center space-y-3">
+              <div class="inline-flex relative group">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 via-blue-500 to-cyan-500 p-0.5 shadow-2xl shadow-indigo-500/30 group-hover:scale-105 transition-transform duration-300">
+                  <div class="w-full h-full bg-[#0d101d] rounded-2xl flex items-center justify-center">
+                    <span class="material-symbols-outlined text-transparent bg-clip-text bg-gradient-to-tr from-indigo-300 via-blue-300 to-cyan-300 text-3xl">person_add</span>
+                  </div>
                 </div>
               </div>
+              <div>
+                <h2 class="text-2xl sm:text-3xl font-black font-heading text-white tracking-tight">Yangi Hisob Ochish</h2>
+                <p class="text-xs text-gray-400 mt-1">Platformadan to'liq foydalanish uchun ma'lumotlarni to'ldiring</p>
+              </div>
             </div>
-            <div>
-              <h2 class="text-2xl sm:text-3xl font-black font-heading text-white tracking-tight">Yangi Hisob Ochish</h2>
-              <p class="text-xs text-gray-400 mt-1">Platformadan to'liq foydalanish uchun ma'lumotlarni to'ldiring</p>
+
+            <!-- Register Form (Step 1) -->
+            <form onsubmit="app.handleRegisterStep1(event)" class="space-y-3.5">
+              <!-- Ism & Familiya -->
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-200 mb-1">Ismingiz</label>
+                  <input type="text" id="reg-firstname" required placeholder="Ali" class="auth-input w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-200 mb-1">Familiyangiz</label>
+                  <input type="text" id="reg-lastname" required placeholder="Valiyev" class="auth-input w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
+                </div>
+              </div>
+
+              <!-- Email -->
+              <div>
+                <label class="block text-xs font-semibold text-gray-200 mb-1">Email / Gmail Manzil</label>
+                <div class="relative">
+                  <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">mail</span>
+                  <input type="email" id="reg-email" required placeholder="ali.valiyev@gmail.com" class="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
+                </div>
+              </div>
+
+              <!-- Telefon Raqam (Phone Number) -->
+              <div>
+                <label class="block text-xs font-semibold text-gray-200 mb-1">Telefon Raqamingiz</label>
+                <div class="relative">
+                  <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">phone_iphone</span>
+                  <input type="tel" id="reg-phone" required placeholder="+998 (90) 123-45-67" class="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
+                </div>
+              </div>
+
+              <!-- Parol -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-200 mb-1">Parol</label>
+                  <div class="relative">
+                    <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">lock</span>
+                    <input type="password" id="reg-password" required minlength="4" placeholder="••••••••" class="auth-input w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
+                    <button type="button" onclick="app.togglePassword('reg-password', 'reg-eye-icon1')" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200 transition">
+                      <span id="reg-eye-icon1" class="material-symbols-outlined text-[18px]">visibility</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-gray-200 mb-1">Tasdiqlash</label>
+                  <div class="relative">
+                    <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">lock_open</span>
+                    <input type="password" id="reg-confirm-password" required minlength="4" placeholder="••••••••" class="auth-input w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
+                    <button type="button" onclick="app.togglePassword('reg-confirm-password', 'reg-eye-icon2')" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200 transition">
+                      <span id="reg-eye-icon2" class="material-symbols-outlined text-[18px]">visibility</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Next Button -->
+              <button type="submit" id="btn-reg-next" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs glow-button-primary transition shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
+                <span class="material-symbols-outlined text-[18px]">send</span>
+                <span>Davom Etish (Tasdiqlash Kodini Olish)</span>
+              </button>
+            </form>
+
+            <div class="pt-3 border-t border-white/10 text-center">
+              <p class="text-xs text-gray-400">
+                Allaqachon hisobingiz bormi? 
+                <a href="#/login" class="text-blue-400 font-bold hover:text-cyan-300 transition">Tizimga kiring</a>
+              </p>
             </div>
           </div>
 
-          <!-- Register Form -->
-          <form onsubmit="app.handleRegisterSubmit(event)" class="space-y-3.5">
-            <!-- Ism & Familiya -->
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-semibold text-gray-200 mb-1">Ismingiz</label>
-                <input type="text" id="reg-firstname" required placeholder="Ali" class="auth-input w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-gray-200 mb-1">Familiyangiz</label>
-                <input type="text" id="reg-lastname" required placeholder="Valiyev" class="auth-input w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
-              </div>
-            </div>
-
-            <!-- Email -->
-            <div>
-              <label class="block text-xs font-semibold text-gray-200 mb-1">Email / Gmail Manzil</label>
-              <div class="relative">
-                <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">mail</span>
-                <input type="email" id="reg-email" required placeholder="ali.valiyev@gmail.com" class="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
-              </div>
-            </div>
-
-            <!-- Telefon Raqam (Phone Number) -->
-            <div>
-              <label class="block text-xs font-semibold text-gray-200 mb-1">Telefon Raqamingiz</label>
-              <div class="relative">
-                <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">phone_iphone</span>
-                <input type="tel" id="reg-phone" required placeholder="+998 (90) 123-45-67" class="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
-              </div>
-            </div>
-
-            <!-- Parol -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-semibold text-gray-200 mb-1">Parol</label>
-                <div class="relative">
-                  <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">lock</span>
-                  <input type="password" id="reg-password" required minlength="4" placeholder="••••••••" class="auth-input w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
-                  <button type="button" onclick="app.togglePassword('reg-password', 'reg-eye-icon1')" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200 transition">
-                    <span id="reg-eye-icon1" class="material-symbols-outlined text-[18px]">visibility</span>
-                  </button>
+          <!-- STEP 2: Verification Code Form (2-rasmdagi ko'rinish) -->
+          <div id="reg-step-2" class="space-y-6 hidden">
+            <!-- Top Header -->
+            <div class="text-center space-y-3">
+              <div class="inline-flex relative group">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-cyan-500 p-0.5 shadow-2xl shadow-emerald-500/30 group-hover:scale-105 transition-transform duration-300">
+                  <div class="w-full h-full bg-[#0d101d] rounded-2xl flex items-center justify-center">
+                    <span class="material-symbols-outlined text-transparent bg-clip-text bg-gradient-to-tr from-emerald-300 via-teal-300 to-cyan-300 text-3xl">mark_email_read</span>
+                  </div>
                 </div>
               </div>
-
               <div>
-                <label class="block text-xs font-semibold text-gray-200 mb-1">Tasdiqlash</label>
-                <div class="relative">
-                  <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">lock_open</span>
-                  <input type="password" id="reg-confirm-password" required minlength="4" placeholder="••••••••" class="auth-input w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
-                  <button type="button" onclick="app.togglePassword('reg-confirm-password', 'reg-eye-icon2')" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200 transition">
-                    <span id="reg-eye-icon2" class="material-symbols-outlined text-[18px]">visibility</span>
-                  </button>
+                <h2 class="text-2xl sm:text-3xl font-black font-heading text-white tracking-tight">Emailni Tasdiqlash</h2>
+                <p class="text-xs text-gray-400 mt-1">Gmail manzilingizga yuborilgan 6 xonali tasdiqlash kodini kiriting</p>
+              </div>
+            </div>
+
+            <!-- Email Display Alert -->
+            <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs space-y-2 backdrop-blur-md">
+              <div class="flex items-center gap-2 font-bold text-emerald-400">
+                <span class="material-symbols-outlined text-[18px] shrink-0 text-emerald-400">mark_email_read</span>
+                <span>Tasdiqlash kodi emailingizga yuborildi!</span>
+              </div>
+              <div class="text-[11px] text-gray-300 flex items-center gap-2 flex-wrap pt-0.5">
+                <span class="text-gray-400">Yuborilgan manzil:</span>
+                <span id="reg-email-display" class="font-mono font-bold text-emerald-300 bg-emerald-500/15 px-2.5 py-1 rounded-lg border border-emerald-500/30 break-all">email@gmail.com</span>
+              </div>
+            </div>
+
+            <!-- Form Step 2 (Exactly as in 2-rasm) -->
+            <form onsubmit="app.handleRegisterSubmit(event)" class="space-y-4">
+              <!-- Verification Code Card (2-rasmdagi ko'rinish) -->
+              <div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25 space-y-3">
+                <div class="flex items-center justify-between">
+                  <label class="block text-xs font-bold text-blue-300 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[17px] text-blue-400">verified</span>
+                    <span>Tasdiqlash Kodi</span>
+                  </label>
+                  <span id="reg-timer-badge" class="px-2.5 py-1 rounded-full bg-blue-600 text-white font-bold text-[11px] shrink-0 shadow-md">
+                    60s
+                  </span>
                 </div>
+                
+                <input type="text" id="reg-code" required maxlength="6" inputmode="numeric" placeholder="6 xonali kod"
+                  class="w-full px-4 py-3 rounded-xl bg-white/10 border border-blue-500/40 text-white placeholder-gray-400 font-mono text-center tracking-widest text-lg font-bold focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/25 transition" />
+
+                <p class="text-[11px] text-gray-400 text-center">
+                  Avval maydonlarni to'ldiring va "Kod Yuborish" tugmasini bosing.
+                </p>
               </div>
+
+              <!-- Submit Button -->
+              <button type="submit" id="btn-reg-submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs glow-button-primary transition shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
+                <span class="material-symbols-outlined text-[18px]">how_to_reg</span>
+                <span>Ro'yxatdan O'tish</span>
+              </button>
+
+              <!-- Resend Code Button -->
+              <button type="button" id="btn-resend-reg-code" onclick="app.handleResendRegCode()" disabled
+                class="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed text-gray-400 hover:text-gray-200 text-xs font-semibold transition flex items-center justify-center gap-1.5">
+                <span class="material-symbols-outlined text-[14px]">refresh</span>
+                <span>Yangi Kod Yuborish</span>
+              </button>
+            </form>
+
+            <div class="pt-3 border-t border-white/10 text-center">
+              <button type="button" onclick="app.backToRegisterStep1()" class="text-xs text-blue-400 hover:text-cyan-300 font-semibold transition inline-flex items-center gap-1">
+                <span class="material-symbols-outlined text-[14px]">arrow_back</span>
+                <span>Ma'lumotlarni o'zgartirish (Orqaga)</span>
+              </button>
             </div>
-
-            <!-- Email Tasdiqlash Kodi -->
-            <div id="code-container" class="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 space-y-2">
-              <div class="flex items-center justify-between">
-                <label class="block text-xs font-bold text-blue-300 flex items-center gap-1">
-                  <span class="material-symbols-outlined text-[16px]">verified</span> Tasdiqlash Kodi
-                </label>
-                <button type="button" id="btn-send-code" onclick="app.sendVerificationCode()" class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold shrink-0 transition flex items-center gap-1 shadow-md">
-                  <span class="material-symbols-outlined text-[14px]">send</span> Kod Yuborish
-                </button>
-              </div>
-              <input type="text" id="reg-code" required maxlength="6" placeholder="6 xonali kod" class="w-full px-3 py-2 rounded-xl bg-white/10 border border-blue-500/40 text-white placeholder-gray-400 font-mono text-center tracking-widest text-sm font-bold focus:outline-none focus:border-blue-400" />
-              <p class="text-[10px] text-gray-400 text-center">Avval maydonlarni to'ldiring va "Kod Yuborish" tugmasini bosing.</p>
-            </div>
-
-            <!-- Submit Button -->
-            <button type="submit" id="btn-reg-submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs glow-button-primary transition shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
-              <span class="material-symbols-outlined text-[18px]">how_to_reg</span>
-              <span>Ro'yxatdan O'tish</span>
-            </button>
-          </form>
-
-          <div class="pt-3 border-t border-white/10 text-center">
-            <p class="text-xs text-gray-400">
-              Allaqachon hisobingiz bormi? 
-              <a href="#/login" class="text-blue-400 font-bold hover:text-cyan-300 transition">Tizimga kiring</a>
-            </p>
           </div>
 
         </div>
@@ -2610,16 +2672,17 @@ const app = {
     this.renderForgotPassword();
   },
 
-  async sendVerificationCode() {
-    const firstName = document.getElementById('reg-firstname')?.value.trim();
-    const lastName = document.getElementById('reg-lastname')?.value.trim();
-    const email = document.getElementById('reg-email')?.value.trim();
-    const phone = document.getElementById('reg-phone')?.value.trim();
-    const password = document.getElementById('reg-password')?.value;
-    const confirmPassword = document.getElementById('reg-confirm-password')?.value;
+  async handleRegisterStep1(e) {
+    e?.preventDefault?.();
+    const firstName = (document.getElementById('reg-firstname')?.value || '').trim();
+    const lastName = (document.getElementById('reg-lastname')?.value || '').trim();
+    const email = (document.getElementById('reg-email')?.value || '').trim().toLowerCase();
+    const phone = (document.getElementById('reg-phone')?.value || '').trim();
+    const password = document.getElementById('reg-password')?.value || '';
+    const confirmPassword = document.getElementById('reg-confirm-password')?.value || '';
 
     if (!firstName) {
-      showToast('Iltimos, avval ismingizni kiriting!', 'error');
+      showToast('Iltimos, ismingizni kiriting!', 'error');
       document.getElementById('reg-firstname')?.focus();
       return;
     }
@@ -2628,8 +2691,8 @@ const app = {
       document.getElementById('reg-lastname')?.focus();
       return;
     }
-    if (!email) {
-      showToast('Iltimos, email manzilingizni kiriting!', 'error');
+    if (!email || !email.includes('@')) {
+      showToast('Iltimos, to\'g\'ri email / Gmail manzil kiriting!', 'error');
       document.getElementById('reg-email')?.focus();
       return;
     }
@@ -2639,7 +2702,7 @@ const app = {
       return;
     }
     if (!password || password.length < 4) {
-      showToast('Iltimos, parolni kiriting (kamida 4 ta belgi)!', 'error');
+      showToast('Parol kamida 4 ta belgidan iborat bo\'lishi kerak!', 'error');
       document.getElementById('reg-password')?.focus();
       return;
     }
@@ -2654,10 +2717,10 @@ const app = {
       return;
     }
 
-    const btn = document.getElementById('btn-send-code');
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = '<span class="material-symbols-outlined text-[14px] animate-spin">refresh</span> Yuborilmoqda...';
+    const btnNext = document.getElementById('btn-reg-next');
+    if (btnNext) {
+      btnNext.disabled = true;
+      btnNext.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">refresh</span> Kod yuborilmoqda...';
     }
 
     const res = await api('/api/auth/send-code', {
@@ -2665,36 +2728,91 @@ const app = {
       body: JSON.stringify({ email })
     });
 
-    if (res.success) {
-      showToast('Tasdiqlash kodi emailingizga yuborildi! Emailingizni tekshirib, kodni kiriting.', 'success');
+    if (btnNext) {
+      btnNext.disabled = false;
+      btnNext.innerHTML = '<span class="material-symbols-outlined text-[18px]">send</span> <span>Davom Etish (Tasdiqlash Kodini Olish)</span>';
+    }
+
+    if (res && res.success) {
+      // Transition to Step 2
+      const step1 = document.getElementById('reg-step-1');
+      const step2 = document.getElementById('reg-step-2');
+      const emailDisplay = document.getElementById('reg-email-display');
+      if (step1) step1.classList.add('hidden');
+      if (step2) step2.classList.remove('hidden');
+      if (emailDisplay) emailDisplay.textContent = email;
+
+      showToast(`✉️ Kod ${email} manziliga yuborildi!`, 'success');
       const codeInput = document.getElementById('reg-code');
       if (codeInput) {
-        codeInput.value = ''; // Never auto-fill, user enters it from their email
-        codeInput.focus();
+        codeInput.value = '';
+        setTimeout(() => codeInput.focus(), 150);
       }
 
-      // 60s countdown
-      let count = 60;
-      const interval = setInterval(() => {
-        count--;
-        if (btn) {
-          btn.innerText = `${count}s`;
-        }
-        if (count <= 0) {
-          clearInterval(interval);
-          if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">send</span> Qayta Kod Yuborish';
-          }
-        }
-      }, 1000);
+      this.startRegTimer();
     } else {
-      showToast(res.message || 'Kod yuborishda xatolik yuz berdi', 'error');
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">send</span> Emailga Kod Yuborish';
-      }
+      showToast(res?.message || 'Kod yuborishda xatolik yuz berdi', 'error');
     }
+  },
+
+  startRegTimer() {
+    let count = 60;
+    const timerBadge = document.getElementById('reg-timer-badge');
+    const resendBtn = document.getElementById('btn-resend-reg-code');
+    if (resendBtn) resendBtn.disabled = true;
+
+    if (this._regInterval) clearInterval(this._regInterval);
+    this._regInterval = setInterval(() => {
+      count--;
+      if (timerBadge) timerBadge.innerText = `${count}s`;
+      if (count <= 0) {
+        clearInterval(this._regInterval);
+        if (timerBadge) timerBadge.innerText = '0s';
+        if (resendBtn) {
+          resendBtn.disabled = false;
+          resendBtn.innerHTML = '<span class="material-symbols-outlined text-[14px]">refresh</span> <span>Qayta Kod Yuborish</span>';
+        }
+      }
+    }, 1000);
+  },
+
+  async handleResendRegCode() {
+    const email = (document.getElementById('reg-email')?.value || '').trim().toLowerCase();
+    if (!email) {
+      showToast('Email topilmadi. Sahifani qayta yuklang.', 'error');
+      return;
+    }
+
+    const resendBtn = document.getElementById('btn-resend-reg-code');
+    if (resendBtn) {
+      resendBtn.disabled = true;
+      resendBtn.innerHTML = '<span class="material-symbols-outlined text-[14px] animate-spin">refresh</span> Yuborilmoqda...';
+    }
+
+    const res = await api('/api/auth/send-code', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+
+    if (res && res.success) {
+      showToast('Yangi tasdiqlash kodi emailingizga yuborildi!', 'success');
+      this.startRegTimer();
+    } else {
+      showToast(res?.message || 'Kod yuborishda xatolik yuz berdi', 'error');
+      if (resendBtn) resendBtn.disabled = false;
+    }
+  },
+
+  backToRegisterStep1() {
+    if (this._regInterval) clearInterval(this._regInterval);
+    const step1 = document.getElementById('reg-step-1');
+    const step2 = document.getElementById('reg-step-2');
+    if (step2) step2.classList.add('hidden');
+    if (step1) step1.classList.remove('hidden');
+  },
+
+  async sendVerificationCode() {
+    await this.handleRegisterStep1();
   },
 
   async handleLoginSubmit(e) {
@@ -2750,26 +2868,20 @@ const app = {
 
   async handleRegisterSubmit(e) {
     e.preventDefault();
-    const rawFirst = document.getElementById('reg-firstname').value.trim();
-    const rawLast = document.getElementById('reg-lastname').value.trim();
+    const rawFirst = document.getElementById('reg-firstname')?.value.trim() || '';
+    const rawLast = document.getElementById('reg-lastname')?.value.trim() || '';
     const firstName = rawFirst ? rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase() : '';
     const lastName = rawLast ? rawLast.charAt(0).toUpperCase() + rawLast.slice(1).toLowerCase() : '';
-    const email = document.getElementById('reg-email').value.trim();
+    const email = (document.getElementById('reg-email')?.value || '').trim();
     const phone = (document.getElementById('reg-phone')?.value || '').trim();
-    const verificationCode = document.getElementById('reg-code').value.trim();
-    const password = document.getElementById('reg-password').value;
-    const confirmPassword = document.getElementById('reg-confirm-password').value;
+    const verificationCode = (document.getElementById('reg-code')?.value || '').trim();
+    const password = document.getElementById('reg-password')?.value || '';
+    const confirmPassword = document.getElementById('reg-confirm-password')?.value || '';
     const btn = document.getElementById('btn-reg-submit');
 
-    if (!phone) {
-      showToast('Iltimos, telefon raqamingizni kiriting!', 'error');
-      document.getElementById('reg-phone')?.focus();
-      return;
-    }
-
-    if (!verificationCode) {
-      showToast('Iltimos, emailga yuborilgan tasdiqlash kodini kiriting!', 'error');
-      document.getElementById('reg-code').focus();
+    if (!verificationCode || verificationCode.length < 6) {
+      showToast('Iltimos, emailga yuborilgan 6 xonali tasdiqlash kodini kiriting!', 'error');
+      document.getElementById('reg-code')?.focus();
       return;
     }
 
