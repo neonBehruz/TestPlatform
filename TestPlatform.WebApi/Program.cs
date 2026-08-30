@@ -116,6 +116,7 @@ using (var scope = app.Services.CreateScope())
     try { db.Database.ExecuteSqlRaw(@"ALTER TABLE ""Users"" ADD COLUMN ""PremiumPlan"" TEXT NOT NULL DEFAULT 'Free';"); } catch { }
     try { db.Database.ExecuteSqlRaw(@"ALTER TABLE ""Users"" ADD COLUMN ""PremiumUntil"" TEXT NULL;"); } catch { }
     try { db.Database.ExecuteSqlRaw(@"ALTER TABLE ""Users"" ADD COLUMN ""PhoneNumber"" TEXT NULL;"); } catch { }
+    try { db.Database.ExecuteSqlRaw(@"ALTER TABLE ""Users"" ADD COLUMN ""AvatarUrl"" TEXT NULL;"); } catch { }
 
     try { db.Database.ExecuteSqlRaw(@"ALTER TABLE ""Tests"" ADD COLUMN ""IsPremiumOnly"" INTEGER NOT NULL DEFAULT 0;"); } catch { }
 

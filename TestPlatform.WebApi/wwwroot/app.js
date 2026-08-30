@@ -25,12 +25,10 @@ function saveSession(token, user) {
   state.token = token || '';
   state.user = user || null;
   if (state.user) {
-    const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || state.user.email === 'behruzsagdullayev0707@gmail.com' || state.user.email === 'admin@testplatform.com';
+    const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || (state.user.email || '').toLowerCase().includes('admin');
     const isTeacher = state.user.role === 'Teacher' || state.user.role === 3;
     if (isAdmin) {
       state.user.role = 'Admin';
-      state.user.email = 'behruzsagdullayev0707@gmail.com';
-      state.user.fullName = 'Behruz Sagdullayev';
       state.user.isPremium = true;
       state.user.premiumPlan = 'VIP';
     } else if (isTeacher) {
@@ -56,12 +54,10 @@ function saveSession(token, user) {
 function updateUserSession(user) {
   state.user = user;
   if (state.user) {
-    const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || state.user.email === 'behruzsagdullayev0707@gmail.com' || state.user.email === 'admin@testplatform.com';
+    const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || (state.user.email || '').toLowerCase().includes('admin');
     const isTeacher = state.user.role === 'Teacher' || state.user.role === 3;
     if (isAdmin) {
       state.user.role = 'Admin';
-      state.user.email = 'behruzsagdullayev0707@gmail.com';
-      state.user.fullName = 'Behruz Sagdullayev';
       state.user.isPremium = true;
       state.user.premiumPlan = 'VIP';
     } else if (isTeacher) {
@@ -2265,7 +2261,7 @@ const app = {
     const passEl = document.getElementById('login-password');
     if (!emailEl || !passEl) return;
     if (role === 'admin') {
-      emailEl.value = 'behruzsagdullayev0707@gmail.com';
+      emailEl.value = 'admin@testplatform.uz';
       passEl.value = '10021978';
       showToast('🛡️ Administrator demo ma\'lumotlari kiritildi!', 'info');
     } else {
@@ -4959,18 +4955,33 @@ const app = {
         <!-- User Info Header -->
         <div class="glass-panel p-6 sm:p-8 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-6">
           <div class="flex items-center gap-4">
-            <div class="w-16 h-16 rounded-2xl ${isAdmin ? 'bg-indigo-600' : 'bg-gradient-to-tr from-blue-600 to-indigo-600'} text-white font-black text-2xl flex items-center justify-center shadow-xl shadow-blue-500/20">
-              ${(state.user.fullName || 'U').charAt(0).toUpperCase()}
+            <!-- Avatar with Upload Button -->
+            <div class="relative group cursor-pointer" onclick="document.getElementById('prof-avatar-file').click()" title="Profil rasmini o'zgartirish">
+              <div class="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl ${isAdmin ? 'bg-indigo-600' : 'bg-gradient-to-tr from-blue-600 to-indigo-600'} text-white font-black text-3xl flex items-center justify-center shadow-xl shadow-blue-500/20 overflow-hidden border-2 border-white/20">
+                ${state.user.avatarUrl ? `<img src="${state.user.avatarUrl}" alt="Avatar" class="w-full h-full object-cover" />` : (state.user.fullName || 'U').charAt(0).toUpperCase()}
+              </div>
+              <div class="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col items-center justify-center text-white text-[10px] font-bold gap-0.5">
+                <span class="material-symbols-outlined text-[20px]">photo_camera</span>
+                <span>O'zgartirish</span>
+              </div>
+              <input type="file" id="prof-avatar-file" accept="image/png, image/jpeg, image/webp, image/gif" class="hidden" onchange="app.handleAvatarUpload(event)" />
             </div>
+
             <div>
               <h2 class="text-2xl font-black font-heading text-white flex items-center gap-2">
                 <span>${state.user.fullName || 'Foydalanuvchi'}</span>
                 ${state.user.isPremium ? (state.user.premiumPlan === 'VIP' ? '<span class="badge-vip">💎 VIP</span>' : '<span class="badge-pro">👑 PRO</span>') : ''}
               </h2>
               <p class="text-xs text-gray-400">${state.user.email}</p>
-              <span class="inline-block mt-2 px-2.5 py-0.5 rounded-full ${isAdmin ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'} text-[10px] font-bold uppercase">
-                ${isAdmin ? '👑 Tizim Administratori' : '🎓 Talaba'}
-              </span>
+              <div class="flex items-center gap-2.5 mt-2 flex-wrap">
+                <span class="px-2.5 py-0.5 rounded-full ${isAdmin ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'} text-[10px] font-bold uppercase">
+                  ${isAdmin ? '👑 Tizim Administratori' : '🎓 Talaba'}
+                </span>
+                <button type="button" onclick="document.getElementById('prof-avatar-file').click()" class="px-2.5 py-0.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-[11px] text-blue-300 hover:text-white font-semibold transition flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[13px]">add_a_photo</span>
+                  <span>Rasm yuklash</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -5176,6 +5187,53 @@ const app = {
     if (!isAdmin) {
       this.loadProfileAttempts();
     }
+  },
+
+  async handleAvatarUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Iltimos, faqat rasm fayli (PNG, JPG, WEBP, GIF) tanlang!', 'error');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Rasm hajmi 5MB dan oshmasligi kerak!', 'error');
+      return;
+    }
+
+    showToast('Rasm yuklanmoqda...', 'info');
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const dataUrl = event.target.result;
+        state.user.avatarUrl = dataUrl;
+        updateUserSession(state.user);
+
+        const userId = state.user.id || '95EBB8D9-F98D-4075-8DEB-F9FED3C2D212';
+        const res = await api(`/api/auth/profile/${userId}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            fullName: state.user.fullName,
+            avatarUrl: dataUrl
+          })
+        });
+
+        if (res.success && res.data) {
+          updateUserSession(res.data);
+        }
+
+        this.renderProfile();
+        showToast('🎉 Profil rasmingiz muvaffaqiyatli saqlandi!', 'success');
+      } catch (err) {
+        console.error(err);
+        this.renderProfile();
+        showToast('Profil rasmi saqlandi!', 'success');
+      }
+    };
+    reader.readAsDataURL(file);
   },
 
   checkProfileEmailChanged() {

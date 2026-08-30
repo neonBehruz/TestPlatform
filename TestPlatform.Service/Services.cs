@@ -252,13 +252,13 @@ namespace TestPlatform.Service
                 await _db.SaveChangesAsync();
             }
 
-            var admin = await _db.Users.FirstOrDefaultAsync(u => u.Email == "behruzsagdullayev0707@gmail.com");
+            var admin = await _db.Users.FirstOrDefaultAsync(u => u.Email == "admin@testplatform.uz" || u.Email == "admin@testplatform.com");
             if (admin == null)
             {
                 admin = new User
                 {
-                    FullName = "Behruz Sagdullayev",
-                    Email = "behruzsagdullayev0707@gmail.com",
+                    FullName = "Tizim Administratori",
+                    Email = "admin@testplatform.uz",
                     PasswordHash = PasswordHasher.HashPassword("10021978"),
                     Role = UserRole.Admin,
                     IsActive = true
@@ -268,8 +268,8 @@ namespace TestPlatform.Service
             }
             else
             {
-                admin.FullName = "Behruz Sagdullayev";
-                admin.Email = "behruzsagdullayev0707@gmail.com";
+                admin.FullName = "Tizim Administratori";
+                admin.Email = "admin@testplatform.uz";
                 admin.PasswordHash = PasswordHasher.HashPassword("10021978");
                 admin.Role = UserRole.Admin;
                 admin.IsActive = true;
@@ -353,6 +353,7 @@ namespace TestPlatform.Service
                 FullName = PasswordHasher.FormatFullName(user.FullName),
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
+                AvatarUrl = user.AvatarUrl,
                 Role = user.Role.ToString(),
                 CreatedAt = user.CreatedAt
             };
@@ -370,7 +371,7 @@ namespace TestPlatform.Service
             // Support exact email match, 'admin' alias, or email starting with input
             var user = await _db.Users.FirstOrDefaultAsync(u => 
                 u.Email.ToLower() == input || 
-                ((input == "admin" || input == "administrator" || input == "behruz" || input == "behruzsagdullayev0707@gmail.com" || input == "admin@testplatform.uz" || input == "admin@testplatform.com") && u.Role == UserRole.Admin) ||
+                ((input == "admin" || input == "administrator" || input == "admin@testplatform.uz" || input == "admin@testplatform.com") && u.Role == UserRole.Admin) ||
                 u.Email.ToLower().StartsWith(input + "@") ||
                 u.FullName.ToLower() == input);
 
@@ -403,6 +404,7 @@ namespace TestPlatform.Service
                 FullName = user.FullName,
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
+                AvatarUrl = user.AvatarUrl,
                 Role = user.Role.ToString(),
                 CreatedAt = user.CreatedAt
             };
@@ -422,6 +424,7 @@ namespace TestPlatform.Service
                 FullName = user.FullName,
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
+                AvatarUrl = user.AvatarUrl,
                 Role = user.Role.ToString(),
                 CreatedAt = user.CreatedAt
             });
@@ -431,6 +434,11 @@ namespace TestPlatform.Service
         {
             var user = await _db.Users.FindAsync(userId);
             if (user == null) return ApiResponse<UserDto>.Fail("Foydalanuvchi topilmadi", 404);
+
+            if (dto.AvatarUrl != null)
+            {
+                user.AvatarUrl = dto.AvatarUrl;
+            }
 
             if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
             {
@@ -476,6 +484,8 @@ namespace TestPlatform.Service
                 Id = user.Id,
                 FullName = user.FullName,
                 Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
+                AvatarUrl = user.AvatarUrl,
                 Role = user.Role.ToString(),
                 CreatedAt = user.CreatedAt
             }, "Ma'lumotlar muvaffaqiyatli yangilandi");
