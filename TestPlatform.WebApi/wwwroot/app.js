@@ -403,7 +403,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     // Check user exists in localStorage
     let users = [];
     try { users = JSON.parse(localStorage.getItem('tp_local_users') || '[]'); } catch (e) {}
-    const isAdmin = targetEmail === 'behruzsagdullayev0707@gmail.com' || targetEmail === 'admin' || targetEmail === 'behruz';
+    const isAdmin = targetEmail === 'admin@testplatform.uz' || targetEmail === 'admin';
     const userExists = isAdmin || users.some(u => (u.email || '').toLowerCase() === targetEmail);
 
     if (!userExists) {
@@ -451,7 +451,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     }
 
     // Reset password
-    const isAdmin = targetEmail === 'behruzsagdullayev0707@gmail.com';
+    const isAdmin = targetEmail === 'admin@testplatform.uz' || targetEmail === 'admin';
     if (isAdmin) {
       localStorage.setItem('tp_admin_custom_pass', newPassword);
     } else {
@@ -626,7 +626,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
         id: 'cert_' + Date.now(),
         attemptId,
         studentId: state.user?.id || 'std_1',
-        studentName: state.user?.fullName || 'Behruz Sagdullayev',
+        studentName: state.user?.fullName || 'Talaba',
         testTitle: found?.title || 'Bilim Sinovi',
         certificateNumber: certNumber,
         verificationCode: vCode,
@@ -755,7 +755,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     } catch (e) {}
 
     // Fallback certificate
-    const isOwnerAdmin = state.user?.role === 'Admin' || state.user?.email === 'behruzsagdullayev0707@gmail.com';
+    const isOwnerAdmin = state.user?.role === 'Admin' || state.user?.email === 'admin@testplatform.uz';
     return {
       success: true,
       statusCode: 200,
@@ -786,7 +786,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
     try {
       const attempts = JSON.parse(localStorage.getItem('tp_local_attempts') || '[]');
       const userEntries = attempts.map((a, idx) => {
-        const isEntryAdmin = a.studentEmail === 'behruzsagdullayev0707@gmail.com' || (state.user?.role === 'Admin' && (a.studentName || '').includes('Behruz'));
+        const isEntryAdmin = a.studentEmail === 'admin@testplatform.uz' || (state.user?.role === 'Admin');
         return {
           rank: idx + 1,
           studentId: a.studentId || 'std_1',
@@ -1057,7 +1057,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
               content: "Platformamizga 21 ta fan bo'yicha jami 63 ta saralangan va standartlarga mos interaktiv testlar joylashtirildi. Bilimingizni sinab ko'ring!",
               category: "Yangilik",
               icon: "campaign",
-              authorName: "Behruz Sagdullayev",
+              authorName: "Admin",
               isPinned: true,
               createdAt: new Date().toISOString()
             },
@@ -1067,7 +1067,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
               content: "Testlarda qiyinchilik yoki savollar bo'lsa, 'Murojaat' bo'limi orqali to'g'ridan-to'g'ri adminga xabar yuborishingiz mumkin.",
               category: "Yangilanish",
               icon: "support_agent",
-              authorName: "Behruz Sagdullayev",
+              authorName: "Admin",
               isPinned: false,
               createdAt: new Date(Date.now() - 86400000).toISOString()
             }
@@ -1119,7 +1119,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
           content: "21 ta asosiy fan bo'yicha jami 63 ta professional testlar bazasi (Boshlang'ich, Standart, Murakkab) muvaffaqiyatli joylashtirildi.",
           category: "Yangilik",
           icon: "campaign",
-          authorName: "Behruz Sagdullayev",
+          authorName: "Admin",
           isPinned: true,
           createdAt: new Date().toISOString()
         },
@@ -1129,7 +1129,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
           content: "Talabalar savol yoki qiyinchiliklarga duch kelganda to'g'ridan-to'g'ri administratorga murojaat yuborishlari mumkin.",
           category: "Yangilanish",
           icon: "support_agent",
-          authorName: "Behruz Sagdullayev",
+          authorName: "Admin",
           isPinned: false,
           createdAt: new Date(Date.now() - 86400000).toISOString()
         }
@@ -1144,7 +1144,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
         content: body.content || "",
         category: body.category || "Yangilik",
         icon: body.icon || "campaign",
-        authorName: state.user?.fullName || "Behruz Sagdullayev",
+        authorName: state.user?.fullName || "Admin",
         isPinned: !!body.isPinned,
         createdAt: new Date().toISOString()
       };
@@ -1486,11 +1486,11 @@ async function handleStandaloneFallback(endpoint, options = {}) {
       logs = [
         {
           id: 'log_1',
-          userName: "Behruz Sagdullayev",
+          userName: "Admin Administrator",
           action: "ADMIN_LOGIN",
           entityName: "Auth",
           entityId: "Admin",
-          details: "Bosh administrator tizimga muvaffaqiyatli kirdi (behruzsagdullayev0707@gmail.com)",
+          details: "Bosh administrator tizimga muvaffaqiyatli kirdi (admin@testplatform.uz)",
           createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString()
         },
         {
@@ -1508,7 +1508,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
           action: "SUPPORT_CENTER",
           entityName: "Support",
           entityId: "HelpDesk",
-          details: "Talabalar murojaat markazi va Telegram integratsiyasi (@Sagdullayev_Behruz) ishga tushirildi",
+          details: "Talabalar murojaat markazi va Telegram integratsiyasi (@TestPlatform_Support) ishga tushirildi",
           createdAt: new Date(Date.now() - 50 * 60 * 1000).toISOString()
         },
         {
@@ -1949,7 +1949,7 @@ const app = {
       if (mainWrapper) mainWrapper.classList.add('lg:pl-64');
     }
 
-    const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || state.user.email === 'behruzsagdullayev0707@gmail.com';
+    const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || state.user.email === 'admin@testplatform.uz';
     const isTeacher = state.user.role === 'Teacher' || state.user.role === 3;
     const isPro = !isAdmin && !isTeacher && (state.user.isPremium || state.user.premiumPlan === 'Pro' || state.user.premiumPlan === 'VIP');
     const isVip = !isAdmin && !isTeacher && (state.user.premiumPlan === 'VIP');
@@ -2140,14 +2140,14 @@ const app = {
     if (!emailInput || !passInput) return;
 
     if (role === 'admin') {
-      emailInput.value = 'behruzsagdullayev0707@gmail.com';
-      passInput.value = 'Admin123!';
+      emailInput.value = 'admin@testplatform.uz';
+      passInput.value = 'admin123';
     } else if (role === 'teacher') {
       emailInput.value = 'teacher@testplatform.uz';
       passInput.value = 'Teacher123!';
     } else if (role === 'student') {
-      emailInput.value = 'student@testplatform.uz';
-      passInput.value = 'Student123!';
+      emailInput.value = 'talaba@gmail.com';
+      passInput.value = 'talaba123';
     }
 
     // Highlight button active state
@@ -3023,11 +3023,35 @@ const app = {
     }
   },
 
-  logout(showNotice = true) {
+  logout(force = false) {
+    if (!force) {
+      this.openModal(`
+        <div class="space-y-5 text-center p-2">
+          <div class="w-16 h-16 rounded-2xl bg-rose-500/15 text-rose-400 border border-rose-500/30 flex items-center justify-center mx-auto text-3xl shadow-xl shadow-rose-500/10">
+            <span class="material-symbols-outlined text-3xl">logout</span>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold font-heading text-white">Tizimdan Chiqish</h3>
+            <p class="text-xs text-gray-300 mt-1.5 leading-relaxed">Siz haqiqatdan ham saytni tark etmoqchimisiz?</p>
+          </div>
+          <div class="grid grid-cols-2 gap-3 pt-2">
+            <button type="button" onclick="app.closeModal()" class="py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-xs font-bold transition hover:scale-[1.01] active:scale-[0.99]">
+              Bekor qilish
+            </button>
+            <button type="button" onclick="app.closeModal(); app.logout(true);" class="py-3 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-bold shadow-lg shadow-rose-500/25 transition hover:scale-[1.01] active:scale-[0.99]">
+              Ha, chiqish
+            </button>
+          </div>
+        </div>
+      `, 'max-w-sm');
+      return;
+    }
+
     clearSession();
     this.updateNavAuth();
-    if (showNotice) showToast('Tizimdan chiqdingiz', 'info');
+    showToast('Tizimdan muvaffaqiyatli chiqildi', 'info');
     window.location.hash = '#/login';
+    this.renderLogin();
   },
 
   openModal(contentHtml, maxWidthClass = 'max-w-lg') {
@@ -3036,11 +3060,13 @@ const app = {
     document.body.classList.add('modal-open');
     modal.innerHTML = `
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn" style="overscroll-behavior: contain;" onclick="if(event.target === this) app.closeModal()">
-        <div class="glass-panel p-6 sm:p-8 rounded-3xl w-full ${maxWidthClass} border border-white/10 shadow-2xl relative animate-scaleUp max-h-[90vh] flex flex-col" style="overscroll-behavior: contain;">
+        <div class="glass-panel p-6 sm:p-8 rounded-3xl w-full ${maxWidthClass} border border-white/10 shadow-2xl relative animate-scaleUp max-h-[92vh] flex flex-col" style="overscroll-behavior: contain;">
           <button onclick="app.closeModal()" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center transition z-10">
             <span class="material-symbols-outlined text-lg">close</span>
           </button>
-          ${contentHtml}
+          <div class="overflow-y-auto max-h-[82vh] pr-1.5 space-y-4">
+            ${contentHtml}
+          </div>
         </div>
       </div>
     `;
@@ -5803,8 +5829,8 @@ const app = {
                   <button onclick="app.openSupportModal()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs glow-button-primary transition flex items-center gap-1.5 shadow-md shadow-blue-600/20">
                     <span class="material-symbols-outlined text-[16px]">chat</span> Murojaat Yuborish
                   </button>
-                  <a href="https://t.me/Sagdullayev_Behruz" target="_blank" rel="noopener noreferrer" class="px-4 py-2.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 font-bold text-xs transition flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[16px]">send</span> Telegram (@Sagdullayev_Behruz)
+                  <a href="https://t.me/TestPlatform_Support" target="_blank" rel="noopener noreferrer" class="px-4 py-2.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 font-bold text-xs transition flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">send</span> Telegram (@TestPlatform_Support)
                   </a>
                 </div>
               </div>
@@ -8880,7 +8906,7 @@ const app = {
               ? '<span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">👨‍🏫 O\'qituvchi</span>'
               : '<span class="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-white/10 text-gray-300 border border-white/15">🎓 Talaba</span>');
 
-          const isCurrentAdmin = (state.user && state.user.email && state.user.email.toLowerCase() === (u.email || '').toLowerCase()) || (u.email && u.email.toLowerCase() === 'behruzsagdullayev0707@gmail.com');
+          const isCurrentAdmin = (state.user && state.user.email && state.user.email.toLowerCase() === (u.email || '').toLowerCase()) || (u.email && u.email.toLowerCase() === 'admin@testplatform.uz');
 
           return `
             <tr class="hover:bg-white/5 transition">
@@ -8986,7 +9012,7 @@ const app = {
 
   openEditUserModal(userId) {
     const user = (this._cachedUsers || []).find(u => String(u.id).toLowerCase() === String(userId).toLowerCase()) || {};
-    const isCurrentAdmin = (state.user && state.user.email && state.user.email.toLowerCase() === (user.email || '').toLowerCase()) || (user.email && user.email.toLowerCase() === 'behruzsagdullayev0707@gmail.com');
+    const isCurrentAdmin = (state.user && state.user.email && state.user.email.toLowerCase() === (user.email || '').toLowerCase()) || (user.email && user.email.toLowerCase() === 'admin@testplatform.uz');
 
     this.openModal(`
       <div class="space-y-5">
@@ -11929,8 +11955,8 @@ const app = {
             <span class="material-symbols-outlined text-sky-400 text-lg">send</span>
             <span>Tezkor javob olish uchun Telegram orqali ham bog'lanishingiz mumkin</span>
           </div>
-          <a href="https://t.me/Sagdullayev_Behruz" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black text-xs font-bold transition whitespace-nowrap shadow-sm">
-            @Sagdullayev_Behruz
+          <a href="https://t.me/TestPlatform_Support" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black text-xs font-bold transition whitespace-nowrap shadow-sm">
+            @TestPlatform_Support
           </a>
         </div>
 
@@ -12137,9 +12163,9 @@ const app = {
                 Shoshilinch savollar yoki to'lov masalalari bo'yicha Telegram orqali xabar qoldiring. Administratorlar 10-15 daqiqa ichida javob berishadi.
               </p>
 
-              <a href="https://t.me/Sagdullayev_Behruz" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-extrabold text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-sky-500/20">
+              <a href="https://t.me/TestPlatform_Support" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-extrabold text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-sky-500/20">
                 <span class="material-symbols-outlined text-[16px]">send</span>
-                <span>Telegram: @Sagdullayev_Behruz</span>
+                <span>Telegram: @TestPlatform_Support</span>
               </a>
             </div>
 

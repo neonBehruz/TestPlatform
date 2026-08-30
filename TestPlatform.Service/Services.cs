@@ -2539,7 +2539,7 @@ namespace TestPlatform.Service
 
         private static readonly HashSet<string> ValidPromoDiscountCodes = new(StringComparer.OrdinalIgnoreCase)
         {
-            "DISCOUNT20", "PROMO20", "STUDENT20", "TEST20", "BEHRUZ20", "EDU20", "VIP20", "SAVE20", "PRO2026", "VIP2026", "TOP20", "NOVA20"
+            "DISCOUNT20", "PROMO20", "STUDENT20", "TEST20", "ADMIN20", "EDU20", "VIP20", "SAVE20", "PRO2026", "VIP2026", "TOP20", "NOVA20"
         };
 
         public Task<ApiResponse<PromoDiscountResultDto>> ValidatePromoCodeAsync(string promoCode)
