@@ -7258,6 +7258,194 @@ const app = {
     }
   },
 
+  downloadExcelTemplate() {
+    if (typeof XLSX === 'undefined') {
+      showToast('Excel kutubxonasi yuklanmoqda...', 'warning');
+      return;
+    }
+    const templateData = [
+      {
+        "Fan": "Matematika",
+        "Daraja (Oson / O'rta / Qiyin)": "Oson",
+        "Savol": "5 * 5 ko'paytmasi nimaga teng?",
+        "Variant A": "25",
+        "Variant B": "20",
+        "Variant C": "30",
+        "Variant D": "15",
+        "To'g'ri Javob": "A",
+        "Ball": 2,
+        "Izoh": "5 * 5 = 25 ga teng"
+      },
+      {
+        "Fan": "Matematika",
+        "Daraja (Oson / O'rta / Qiyin)": "O'rta",
+        "Savol": "2x + 6 = 14 tenglamaning ildizini toping.",
+        "Variant A": "4",
+        "Variant B": "3",
+        "Variant C": "5",
+        "Variant D": "6",
+        "To'g'ri Javob": "A",
+        "Ball": 2,
+        "Izoh": "2x = 8 => x = 4"
+      },
+      {
+        "Fan": "Matematika",
+        "Daraja (Oson / O'rta / Qiyin)": "Qiyin",
+        "Savol": "f(x) = x^3 funksiyaning hosilasini toping.",
+        "Variant A": "3x^2",
+        "Variant B": "x^2",
+        "Variant C": "3x",
+        "Variant D": "6x",
+        "To'g'ri Javob": "A",
+        "Ball": 3,
+        "Izoh": "(x^n)' = n * x^(n-1)"
+      },
+      {
+        "Fan": "Ingliz tili",
+        "Daraja (Oson / O'rta / Qiyin)": "Oson",
+        "Savol": "She ____ to school every morning.",
+        "Variant A": "goes",
+        "Variant B": "go",
+        "Variant C": "going",
+        "Variant D": "gone",
+        "To'g'ri Javob": "A",
+        "Ball": 2,
+        "Izoh": "Present Simple 3rd person singular"
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Test_Shablon");
+    XLSX.writeFile(wb, "Test_Shablon_Namunaviy.xlsx");
+    showToast("Excel namunaviy shabloni yuklab olindi! 🎉", "success");
+  },
+
+  normalizeExcelRows(rows) {
+    if (!Array.isArray(rows) || rows.length === 0) return null;
+
+    const parsedQuestions = [];
+    const bundlesMap = new Map(); // key: subject + '___' + difficulty
+
+    for (let r of rows) {
+      const getVal = (patterns) => {
+        for (let p of patterns) {
+          for (let k in r) {
+            const cleanK = k.toString().trim().toLowerCase().replace(/['`’_-\s]/g, '');
+            const cleanP = p.toLowerCase().replace(/['`’_-\s]/g, '');
+            if (cleanK === cleanP || cleanK.includes(cleanP)) {
+              const v = r[k];
+              if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+            }
+          }
+        }
+        return '';
+      };
+
+      const questionText = getVal(['savol', 'question', 'text', 'test', 'savolmatni']);
+      if (!questionText) continue;
+
+      const subjectName = getVal(['fan', 'fannomi', 'subject', 'mavzu', 'kurs', 'yonalish']) || 'Umumiy Fan';
+      const rawDifficulty = getVal(['daraja', 'qiyinlik', 'difficulty', 'murakkablik', 'level', 'qiyinligi']).toLowerCase();
+
+      let difficulty = 'medium';
+      let difficultyNum = 2;
+      let diffTitleSuffix = "(O'rta)";
+
+      if (rawDifficulty.includes('oson') || rawDifficulty.includes('easy') || rawDifficulty === '1' || rawDifficulty.includes('boshlang')) {
+        difficulty = 'easy';
+        difficultyNum = 1;
+        diffTitleSuffix = "(Oson)";
+      } else if (rawDifficulty.includes('qiyin') || rawDifficulty.includes('hard') || rawDifficulty === '3' || rawDifficulty.includes('murakkab') || rawDifficulty.includes('pro')) {
+        difficulty = 'hard';
+        difficultyNum = 3;
+        diffTitleSuffix = "(Qiyin)";
+      } else {
+        difficulty = 'medium';
+        difficultyNum = 2;
+        diffTitleSuffix = "(O'rta)";
+      }
+
+      const optA = getVal(['varianta', 'avariant', 'optiona', 'javoba', 'variant1', '1variant', 'a']);
+      const optB = getVal(['variantb', 'bvariant', 'optionb', 'javobb', 'variant2', '2variant', 'b']);
+      const optC = getVal(['variantc', 'cvariant', 'optionc', 'javobc', 'variant3', '3variant', 'c']);
+      const optD = getVal(['variantd', 'dvariant', 'optiond', 'javobd', 'variant4', '4variant', 'd']);
+
+      const rawCorrect = getVal(['togrijavob', 'togri', 'correct', 'answer', 'key', 'javob']).toUpperCase();
+
+      const options = [];
+      if (optA) {
+        options.push({
+          text: optA,
+          isCorrect: rawCorrect === 'A' || rawCorrect === '1' || rawCorrect === optA.toUpperCase() || rawCorrect.includes('A')
+        });
+      }
+      if (optB) {
+        options.push({
+          text: optB,
+          isCorrect: rawCorrect === 'B' || rawCorrect === '2' || rawCorrect === optB.toUpperCase() || rawCorrect.includes('B')
+        });
+      }
+      if (optC) {
+        options.push({
+          text: optC,
+          isCorrect: rawCorrect === 'C' || rawCorrect === '3' || rawCorrect === optC.toUpperCase() || rawCorrect.includes('C')
+        });
+      }
+      if (optD) {
+        options.push({
+          text: optD,
+          isCorrect: rawCorrect === 'D' || rawCorrect === '4' || rawCorrect === optD.toUpperCase() || rawCorrect.includes('D')
+        });
+      }
+
+      // If no option marked correct, default first option
+      if (!options.some(o => o.isCorrect) && options.length > 0) {
+        options[0].isCorrect = true;
+      }
+
+      const points = Number(getVal(['ball', 'points', 'score', 'baho'])) || (difficulty === 'hard' ? 3 : 2);
+      const explanation = getVal(['izoh', 'tushuntirish', 'explanation', 'sharh']);
+
+      const qObj = {
+        text: questionText,
+        difficulty,
+        difficultyNum,
+        points,
+        explanation,
+        options: options.length >= 2 ? options : [
+          { text: optA || "Variant A", isCorrect: true },
+          { text: optB || "Variant B", isCorrect: false }
+        ]
+      };
+
+      parsedQuestions.push(qObj);
+
+      // Group key: Subject + Difficulty
+      const groupKey = `${subjectName}___${difficulty}`;
+      if (!bundlesMap.has(groupKey)) {
+        bundlesMap.set(groupKey, {
+          subject: subjectName,
+          title: `${subjectName} ${diffTitleSuffix}`,
+          difficulty: difficultyNum,
+          difficultyStr: difficulty,
+          questions: []
+        });
+      }
+      bundlesMap.get(groupKey).questions.push(qObj);
+    }
+
+    if (parsedQuestions.length === 0) return null;
+
+    const subjectsBundle = Array.from(bundlesMap.values());
+    parsedQuestions.isMultiSubjectBundle = subjectsBundle.length > 1;
+    parsedQuestions.subjectsBundle = subjectsBundle;
+    parsedQuestions.detectedSubject = subjectsBundle[0]?.subject || 'Umumiy Fan';
+    parsedQuestions.detectedTitle = subjectsBundle[0]?.title || 'Yangi Test';
+
+    return parsedQuestions;
+  },
+
   readExcelForAddTest(file) {
     if (typeof XLSX === 'undefined') {
       showToast('Excel kutubxonasi yuklanmoqda...', 'warning');
@@ -7299,8 +7487,8 @@ const app = {
 
         if (normalized.isMultiSubjectBundle && normalized.subjectsBundle?.length > 1) {
           const bundleCount = normalized.subjectsBundle.length;
-          if (statusMsg) statusMsg.innerHTML = `<span class="material-symbols-outlined text-base text-emerald-400">check_circle</span> <span>'${file.name}' faylidan <b>${bundleCount} ta turli Fan/Test</b> va jami <b>${normalized.length} ta savol</b> o'qildi!</span>`;
-          if (countBadge) countBadge.innerText = `${bundleCount} ta Fan · ${normalized.length} ta savol`;
+          if (statusMsg) statusMsg.innerHTML = `<span class="material-symbols-outlined text-base text-emerald-400">check_circle</span> <span>'${file.name}' faylidan <b>${bundleCount} ta turli Darajadagi Testlar</b> va jami <b>${normalized.length} ta savol</b> o'qildi!</span>`;
+          if (countBadge) countBadge.innerText = `${bundleCount} ta Test · ${normalized.length} ta savol`;
 
           if (singleFieldsContainer) singleFieldsContainer.classList.add('hidden');
           if (bundlePreviewContainer) {
@@ -7308,15 +7496,15 @@ const app = {
             bundlePreviewContainer.innerHTML = `
               <div class="space-y-2">
                 <div class="flex items-center justify-between text-xs text-gray-300 font-semibold">
-                  <span>Aniqlangan Fanlar va Testlar to'plami (${bundleCount} ta):</span>
-                  <span class="text-emerald-400 text-[11px]">Har bir fan uchun alohida test yaratiladi</span>
+                  <span>Aniqlangan Fanlar va Darajalar to'plami (${bundleCount} ta):</span>
+                  <span class="text-emerald-400 text-[11px]">Har bir daraja uchun alohida test yaratiladi</span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-56 overflow-y-auto custom-scrollbar p-3 rounded-2xl bg-white/5 border border-white/10">
                   ${normalized.subjectsBundle.map((b, i) => `
                     <div class="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between hover:bg-white/10 transition">
                       <div class="min-w-0 pr-2">
                         <div class="text-xs font-bold text-white truncate">${this.escapeHtml(b.title)}</div>
-                        <div class="text-[10px] text-emerald-400 font-semibold truncate">📚 ${this.escapeHtml(b.subject)}</div>
+                        <div class="text-[10px] text-emerald-400 font-semibold truncate">📚 ${this.escapeHtml(b.subject)} &nbsp;·&nbsp; ${b.difficulty === 1 ? '🟢 Oson' : (b.difficulty === 3 ? '🔴 Qiyin' : '🟡 O\'rta')}</div>
                       </div>
                       <span class="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 text-[10px] font-bold shrink-0 font-mono">${b.questions.length} ta savol</span>
                     </div>
@@ -7368,6 +7556,7 @@ const app = {
         bundles = [{
           subject: subVal,
           title: titleVal,
+          difficulty: 2,
           questions: questions
         }];
       }
@@ -7408,7 +7597,7 @@ const app = {
           continue;
         }
 
-        // 2. Create Test
+        // 2. Create Test with matching difficulty (1: Oson, 2: O'rta, 3: Qiyin)
         const createTestRes = await api('/api/tests', {
           method: 'POST',
           body: JSON.stringify({
@@ -7418,7 +7607,7 @@ const app = {
             passingPercentage: 60,
             timeLimitMinutes: Math.max(10, Math.min(180, Math.ceil(bQuestions.length * 1.5))),
             maxAttemptsPerStudent: 5,
-            difficulty: 2,
+            difficulty: bundle.difficulty || 2,
             isPublished: true,
             isPremiumOnly: false,
             showReviewAfterSubmit: true,
@@ -7436,8 +7625,9 @@ const app = {
               method: 'POST',
               body: JSON.stringify({
                 text: q.text,
-                points: q.points || 2,
+                points: q.points || (q.difficulty === 'hard' ? 3 : 2),
                 difficulty: q.difficulty || 'medium',
+                explanation: q.explanation || '',
                 options: q.options && q.options.length >= 2 ? q.options : [
                   { text: "A variant", isCorrect: true },
                   { text: "B variant", isCorrect: false }
@@ -7456,6 +7646,7 @@ const app = {
 
       if (createdTestsCount > 0) {
         showToast(`Muvaffaqiyatli! ${createdTestsCount} ta fan/test va jami ${totalQuestionsAdded} ta savol yaratildi! 🎉`, 'success');
+        this.renderAdminTests();
       } else {
         showToast(`Test yaratilmadi. Iltimos, ma'lumotlarni tekshiring!`, 'error');
       }
