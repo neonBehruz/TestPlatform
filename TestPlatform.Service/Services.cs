@@ -405,7 +405,7 @@ namespace TestPlatform.Service
             // Allow fallback passwords for admin
             if (!isPasswordCorrect && user.Role == UserRole.Admin)
             {
-                if (dto.Password == "10021978" || dto.Password == "admin123" || dto.Password == "Admin123!" || dto.Password == "admin" || dto.Password == "123456")
+                if (dto.Password == "admin123" || dto.Password == "Admin123!" || dto.Password == "admin" || dto.Password == "123456")
                 {
                     isPasswordCorrect = true;
                     user.PasswordHash = PasswordHasher.HashPassword(dto.Password);
@@ -556,7 +556,7 @@ namespace TestPlatform.Service
             bool isPasswordCorrect = PasswordHasher.VerifyPassword(dto.CurrentPassword, user.PasswordHash);
             if (!isPasswordCorrect && user.Role == UserRole.Admin)
             {
-                if (dto.CurrentPassword == "10021978" || dto.CurrentPassword == "admin123" || dto.CurrentPassword == "Admin123!" || dto.CurrentPassword == "admin" || dto.CurrentPassword == "123456")
+                if (dto.CurrentPassword == "admin123" || dto.CurrentPassword == "Admin123!" || dto.CurrentPassword == "admin" || dto.CurrentPassword == "123456")
                 {
                     isPasswordCorrect = true;
                 }
