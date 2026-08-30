@@ -2389,65 +2389,78 @@ const app = {
   renderForgotPassword() {
     const root = document.getElementById('app-root');
     root.innerHTML = `
-      <div class="max-w-md mx-auto my-8 sm:my-12 relative animate-entrance">
-        <div class="glow-orb w-64 h-64 bg-indigo-600/20 top-[-20px] right-[-20px]"></div>
-        <div class="glow-orb w-56 h-56 bg-blue-600/15 bottom-[-20px] left-[-20px]" style="animation-delay:-3s;"></div>
+      <div class="max-w-lg mx-auto my-6 sm:my-10 relative animate-entrance">
+        <!-- Ambient Glow Orbs -->
+        <div class="absolute -top-12 -right-12 w-80 h-80 bg-blue-500/25 rounded-full blur-[100px] pointer-events-none animate-pulse"></div>
+        <div class="absolute -bottom-12 -left-12 w-80 h-80 bg-purple-500/25 rounded-full blur-[100px] pointer-events-none" style="animation-delay: 2s;"></div>
 
-        <div class="shader-card p-6 sm:p-8 space-y-6 relative z-10">
+        <!-- Luxury Glassmorphic Card -->
+        <div class="relative z-10 p-7 sm:p-9 rounded-3xl bg-[#0b0e1b]/85 backdrop-blur-2xl border border-white/15 shadow-[0_0_60px_rgba(0,0,0,0.6)] ring-1 ring-white/10 space-y-6">
+          
           <!-- Header -->
           <div class="text-center space-y-3">
-            <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-600 text-white flex items-center justify-center mx-auto shadow-xl shadow-blue-500/30 ring-1 ring-white/20 transform hover:scale-105 transition-transform duration-300">
-              <span class="material-symbols-outlined text-3xl">lock_reset</span>
+            <div class="inline-flex relative group">
+              <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 p-0.5 shadow-2xl shadow-blue-500/30 group-hover:scale-105 transition-transform duration-300">
+                <div class="w-full h-full bg-[#0d101d] rounded-2xl flex items-center justify-center">
+                  <span class="material-symbols-outlined text-transparent bg-clip-text bg-gradient-to-tr from-blue-300 via-cyan-300 to-indigo-300 text-3xl">lock_reset</span>
+                </div>
+              </div>
             </div>
             <div>
-              <h2 class="text-2xl font-black font-heading text-white tracking-tight">Parolni Tiklash</h2>
-              <p class="text-xs text-gray-400 mt-1">Gmail manzilingizni kiriting — 6 xonali kod yuboramiz</p>
+              <h2 class="text-2xl sm:text-3xl font-black font-heading text-white tracking-tight">Parolni Tiklash</h2>
+              <p class="text-xs text-gray-400 mt-1">Gmail manzilingizni kiriting — 6 xonali tasdiqlash kodi yuboramiz</p>
             </div>
           </div>
 
           <!-- Step 1: Email input -->
           <div id="forgot-step-email" class="space-y-4">
             <div>
-              <label class="block text-xs font-semibold text-gray-300 mb-1.5">Gmail Manzil</label>
+              <label class="block text-xs font-semibold text-gray-200 mb-1.5">Gmail Manzil</label>
               <div class="relative">
-                <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">mail</span>
-                <input type="email" id="forgot-email-input" required placeholder="example@gmail.com"
-                  class="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none" />
+                <span class="material-symbols-outlined absolute left-3.5 top-3.5 text-gray-400 text-[18px]">mail</span>
+                <input type="email" id="forgot-email-input" required placeholder="ali.valiyev@gmail.com"
+                  class="auth-input w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
               </div>
             </div>
 
-
             <button id="btn-forgot-send" onclick="app.handleForgotSend()"
-              class="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs glow-button-primary transition shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2">
+              class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs glow-button-primary transition shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
               <span class="material-symbols-outlined text-[18px]">send</span>
-              Kod Yuborish
+              <span>Tasdiqlash Kodini Yuborish</span>
             </button>
           </div>
 
           <!-- Step 2: OTP + New password (initially hidden) -->
           <div id="forgot-step-reset" class="space-y-4 hidden">
-            <!-- email display -->
-            <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
-              <span class="material-symbols-outlined text-[16px] shrink-0">mark_email_read</span>
-              <span id="forgot-email-display">email@gmail.com</span>&nbsp;manziliga kod yuborildi!
+            
+            <!-- Sleek, Perfectly Aligned Email Display Card -->
+            <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs space-y-2 backdrop-blur-md">
+              <div class="flex items-center gap-2 font-bold text-emerald-400">
+                <span class="material-symbols-outlined text-[18px] shrink-0 text-emerald-400">mark_email_read</span>
+                <span>Tasdiqlash kodi muvaffaqiyatli yuborildi!</span>
+              </div>
+              <div class="text-[11px] text-gray-300 flex items-center gap-2 flex-wrap pt-0.5">
+                <span class="text-gray-400">Yuborilgan manzil:</span>
+                <span id="forgot-email-display" class="font-mono font-bold text-emerald-300 bg-emerald-500/15 px-2.5 py-1 rounded-lg border border-emerald-500/30 break-all">email@gmail.com</span>
+              </div>
             </div>
 
             <!-- OTP -->
             <div>
-              <label class="block text-xs font-semibold text-gray-300 mb-1.5">Tasdiqlash Kodi (6 xona)</label>
+              <label class="block text-xs font-semibold text-gray-200 mb-1.5">Tasdiqlash Kodi (6 xonali)</label>
               <input type="text" id="forgot-otp-input" maxlength="6" inputmode="numeric"
                 placeholder="• • • • • •"
-                class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white font-mono tracking-widest text-center text-lg font-bold focus:outline-none focus:border-blue-400 placeholder-gray-600 transition" />
+                class="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-blue-500/40 text-white font-mono tracking-widest text-center text-lg font-bold focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 placeholder-gray-600 transition" />
             </div>
 
             <!-- New password -->
             <div>
-              <label class="block text-xs font-semibold text-gray-300 mb-1.5">Yangi Parol</label>
+              <label class="block text-xs font-semibold text-gray-200 mb-1.5">Yangi Parol</label>
               <div class="relative">
                 <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">lock</span>
                 <input type="password" id="forgot-new-pass" minlength="4" placeholder="Kamida 4 ta belgi"
-                  class="auth-input w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none" />
-                <button type="button" onclick="app.togglePassword('forgot-new-pass','fp-eye1')" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200 transition">
+                  class="auth-input w-full pl-10 pr-10 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
+                <button type="button" onclick="app.togglePassword('forgot-new-pass','fp-eye1')" class="absolute right-3 top-3 text-gray-400 hover:text-gray-200 transition">
                   <span id="fp-eye1" class="material-symbols-outlined text-[18px]">visibility</span>
                 </button>
               </div>
@@ -2455,34 +2468,34 @@ const app = {
 
             <!-- Confirm password -->
             <div>
-              <label class="block text-xs font-semibold text-gray-300 mb-1.5">Parolni Tasdiqlash</label>
+              <label class="block text-xs font-semibold text-gray-200 mb-1.5">Parolni Qayta Tasdiqlang</label>
               <div class="relative">
                 <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">lock_open</span>
                 <input type="password" id="forgot-confirm-pass" minlength="4" placeholder="Parolni qayta tering"
-                  class="auth-input w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none" />
-                <button type="button" onclick="app.togglePassword('forgot-confirm-pass','fp-eye2')" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200 transition">
+                  class="auth-input w-full pl-10 pr-10 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
+                <button type="button" onclick="app.togglePassword('forgot-confirm-pass','fp-eye2')" class="absolute right-3 top-3 text-gray-400 hover:text-gray-200 transition">
                   <span id="fp-eye2" class="material-symbols-outlined text-[18px]">visibility</span>
                 </button>
               </div>
             </div>
 
             <button id="btn-forgot-reset" onclick="app.handleForgotReset()"
-              class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-bold text-xs transition shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2">
+              class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-bold text-xs transition shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
               <span class="material-symbols-outlined text-[18px]">check_circle</span>
-              Parolni Yangilash
+              <span>Parolni Yangilash</span>
             </button>
 
             <button onclick="app.handleForgotResend()" id="btn-forgot-resend"
-              class="w-full py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 text-xs font-semibold transition flex items-center justify-center gap-1.5">
+              class="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-gray-200 text-xs font-semibold transition flex items-center justify-center gap-1.5">
               <span class="material-symbols-outlined text-[14px]">refresh</span>
-              Yangi Kod Yuborish
+              <span>Yangi Kod Yuborish</span>
             </button>
           </div>
 
           <div class="pt-4 border-t border-white/10 text-center">
-            <a href="#/login" class="text-xs text-blue-400 hover:text-blue-300 font-semibold transition flex items-center justify-center gap-1">
+            <a href="#/login" class="text-xs text-blue-400 hover:text-cyan-300 font-semibold transition inline-flex items-center gap-1">
               <span class="material-symbols-outlined text-[14px]">arrow_back</span>
-              Kirish sahifasiga qaytish
+              <span>Kirish sahifasiga qaytish</span>
             </a>
           </div>
         </div>
