@@ -545,6 +545,27 @@ namespace TestPlatform.Service.DTOs
         public string Role { get; set; } = "Teacher"; // Admin, Teacher, Student
     }
 
+    public class AdminEditUserDto
+    {
+        public string FullName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string? NewPassword { get; set; }
+        public string? Role { get; set; }
+    }
+
+    public class GrantProPlanDto
+    {
+        public string Plan { get; set; } = "Pro";
+        public int Days { get; set; } = 30;
+    }
+
+    public class ClientAuditLogDto
+    {
+        public string Action { get; set; } = string.Empty;
+        public string? EntityName { get; set; } = "System";
+        public string Details { get; set; } = string.Empty;
+    }
+
     public class TeacherUserDto
     {
         public Guid Id { get; set; }

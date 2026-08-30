@@ -1113,6 +1113,15 @@ namespace TestPlatform.Service
             attempt.IsPassed = attempt.Percentage >= test.PassingPercentage;
 
             _db.TestAttempts.Add(attempt);
+            _db.AuditLogs.Add(new AuditLog
+            {
+                UserName = attempt.StudentName,
+                Action = "TEST_COMPLETE",
+                EntityName = "Test",
+                EntityId = test.Id.ToString(),
+                Details = $"{attempt.StudentName} '{test.Title}' testini topshirdi. Ball: {attempt.EarnedScore}/{attempt.TotalScore} ({attempt.Percentage}%) - {(attempt.IsPassed ? "Muvaffaqiyatli o'tdi 🏆" : "O'ta olmadi")}",
+                CreatedAt = DateTime.UtcNow
+            });
             await _db.SaveChangesAsync();
 
             // Auto-generate Certificate if Passed
@@ -1268,18 +1277,13 @@ namespace TestPlatform.Service
             var totalSubjects = await _db.Subjects.CountAsync();
             var totalUsers = await _db.Users.CountAsync();
 
-            if (totalTests == 0) totalTests = 63;
-            if (totalQuestions == 0) totalQuestions = 630;
-            if (totalSubjects == 0) totalSubjects = 21;
-            if (totalUsers == 0) totalUsers = 1;
-
             var summary = new DashboardSummaryDto
             {
                 TotalUsers = totalUsers,
                 TotalStudents = await _db.Users.CountAsync(u => u.Role == UserRole.Student),
                 TotalSubjects = totalSubjects,
                 TotalTests = totalTests,
-                TotalPublishedTests = await _db.Tests.AnyAsync() ? await _db.Tests.CountAsync(t => t.IsPublished) : totalTests,
+                TotalPublishedTests = await _db.Tests.CountAsync(t => t.IsPublished),
                 TotalQuestions = totalQuestions,
                 TotalAttempts = await _db.TestAttempts.CountAsync(),
                 AveragePercentage = await _db.TestAttempts.AnyAsync() ? Math.Round(await _db.TestAttempts.AverageAsync(a => a.Percentage), 1) : 0,

@@ -19,10 +19,12 @@ namespace TestPlatform.WebApi.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        private readonly IAuditLogService _auditLogService;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, IAuditLogService auditLogService)
         {
             _authService = authService;
+            _auditLogService = auditLogService;
         }
 
         [HttpPost("send-code")]
@@ -38,6 +40,12 @@ namespace TestPlatform.WebApi.Controllers
         {
             var res = await _authService.RegisterAsync(dto);
             if (!res.Success) return BadRequest(res);
+
+            if (res.Data?.User != null)
+            {
+                await _auditLogService.LogAsync(res.Data.User.FullName, "REGISTER", "User", res.Data.User.Id.ToString(), $"{res.Data.User.FullName} ({res.Data.User.Email}) yangi hisob ochdi va ro'yxatdan o'tdi (Roli: {res.Data.User.Role})");
+            }
+
             return Ok(res);
         }
 
@@ -46,6 +54,12 @@ namespace TestPlatform.WebApi.Controllers
         {
             var res = await _authService.LoginAsync(dto);
             if (!res.Success) return Unauthorized(res);
+
+            if (res.Data?.User != null)
+            {
+                await _auditLogService.LogAsync(res.Data.User.FullName, "LOGIN", "User", res.Data.User.Id.ToString(), $"{res.Data.User.FullName} ({res.Data.User.Email}) tizimga kirdi (Login)");
+            }
+
             return Ok(res);
         }
 
@@ -432,6 +446,16 @@ namespace TestPlatform.WebApi.Controllers
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetLogs([FromQuery] int top = 50) => Ok(await _auditLogService.GetLogsAsync(top));
+
+        [HttpPost("log")]
+        [Authorize]
+        public async Task<IActionResult> ClientLog([FromBody] ClientAuditLogDto dto)
+        {
+            var userName = User.FindFirstValue(ClaimTypes.Name) ?? "Foydalanuvchi";
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+            await _auditLogService.LogAsync(userName, dto.Action, dto.EntityName ?? "System", userId, dto.Details);
+            return Ok(new { success = true });
+        }
     }
 
     [ApiController]
@@ -453,6 +477,9 @@ namespace TestPlatform.WebApi.Controllers
                     u.FullName,
                     u.Email,
                     Role = u.Role.ToString(),
+                    u.IsPremium,
+                    u.PremiumPlan,
+                    u.PremiumUntil,
                     u.CreatedAt
                 })
                 .ToListAsync();
@@ -508,6 +535,18 @@ namespace TestPlatform.WebApi.Controllers
             _db.Users.Add(teacher);
             await _db.SaveChangesAsync();
 
+            var adminName = User.FindFirstValue(ClaimTypes.Name) ?? "Admin";
+            _db.AuditLogs.Add(new AuditLog
+            {
+                UserName = adminName,
+                Action = "TEACHER_CREATE",
+                EntityName = "User",
+                EntityId = teacher.Id.ToString(),
+                Details = $"Admin yangi o'qituvchi yaratdi: {teacher.FullName} ({teacher.Email})",
+                CreatedAt = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync();
+
             return Ok(new { 
                 success = true, 
                 statusCode = 200, 
@@ -524,6 +563,101 @@ namespace TestPlatform.WebApi.Controllers
             });
         }
 
+        [HttpPut("{id:guid}/admin-edit")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AdminEditUser(Guid id, [FromBody] AdminEditUserDto dto)
+        {
+            var user = await _db.Users.FindAsync(id);
+            if (user == null) return NotFound(new { success = false, message = "Foydalanuvchi topilmadi" });
+
+            if (!string.IsNullOrWhiteSpace(dto.FullName))
+                user.FullName = PasswordHasher.FormatFullName(dto.FullName);
+
+            if (!string.IsNullOrWhiteSpace(dto.Email))
+            {
+                var email = dto.Email.Trim().ToLower();
+                if (await _db.Users.AnyAsync(u => u.Email.ToLower() == email && u.Id != id))
+                    return BadRequest(new { success = false, message = "Bu email boshqa foydalanuvchida band qilingan" });
+                user.Email = email;
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.NewPassword))
+            {
+                user.PasswordHash = PasswordHasher.HashPassword(dto.NewPassword.Trim());
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.Role) && Enum.TryParse<UserRole>(dto.Role, true, out var role))
+            {
+                user.Role = role;
+            }
+
+            user.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            var adminName = User.FindFirstValue(ClaimTypes.Name) ?? "Admin";
+            _db.AuditLogs.Add(new AuditLog
+            {
+                UserName = adminName,
+                Action = "USER_EDIT",
+                EntityName = "User",
+                EntityId = user.Id.ToString(),
+                Details = $"Admin {user.FullName} ma'lumotlarini tahrirladi (Email: {user.Email}, Yangi parol berildi: {(!string.IsNullOrWhiteSpace(dto.NewPassword) ? "Ha" : "Yo'q")}, Rol: {user.Role})",
+                CreatedAt = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync();
+
+            return Ok(new { 
+                success = true, 
+                message = "Foydalanuvchi ma'lumotlari muvaffaqiyatli saqlandi", 
+                data = new { user.Id, user.FullName, user.Email, Role = user.Role.ToString(), user.IsPremium, user.PremiumPlan }
+            });
+        }
+
+        [HttpPut("{id:guid}/grant-pro")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GrantPro(Guid id, [FromBody] GrantProPlanDto dto)
+        {
+            var user = await _db.Users.FindAsync(id);
+            if (user == null) return NotFound(new { success = false, message = "Foydalanuvchi topilmadi" });
+
+            var plan = string.IsNullOrWhiteSpace(dto.Plan) ? "Pro" : dto.Plan;
+            var days = dto.Days > 0 ? dto.Days : 30;
+
+            if (plan == "Free")
+            {
+                user.IsPremium = false;
+                user.PremiumPlan = "Free";
+                user.PremiumUntil = null;
+            }
+            else
+            {
+                user.IsPremium = true;
+                user.PremiumPlan = plan;
+                user.PremiumUntil = DateTime.UtcNow.AddDays(days);
+            }
+
+            user.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            var adminName = User.FindFirstValue(ClaimTypes.Name) ?? "Admin";
+            _db.AuditLogs.Add(new AuditLog
+            {
+                UserName = adminName,
+                Action = "GRANT_PRO",
+                EntityName = "User",
+                EntityId = user.Id.ToString(),
+                Details = $"Admin {user.FullName} ga '{plan}' tarifi berdi ({days} kunlik)",
+                CreatedAt = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync();
+
+            return Ok(new { 
+                success = true, 
+                message = $"Foydalanuvchiga '{plan}' tarifi berildi",
+                data = new { user.Id, user.FullName, user.IsPremium, user.PremiumPlan, user.PremiumUntil }
+            });
+        }
+
         [HttpPut("{id:guid}/set-role")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> SetUserRole(Guid id, [FromBody] SetUserRoleDto dto)
@@ -537,6 +671,19 @@ namespace TestPlatform.WebApi.Controllers
                 user.Role = role;
                 user.UpdatedAt = DateTime.UtcNow;
                 await _db.SaveChangesAsync();
+
+                var adminName = User.FindFirstValue(ClaimTypes.Name) ?? "Admin";
+                _db.AuditLogs.Add(new AuditLog
+                {
+                    UserName = adminName,
+                    Action = "USER_ROLE_CHANGE",
+                    EntityName = "User",
+                    EntityId = user.Id.ToString(),
+                    Details = $"Admin {user.FullName} roliga '{role}' o'rnatdi",
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _db.SaveChangesAsync();
+
                 return Ok(new { 
                     success = true, 
                     message = $"Foydalanuvchi roli '{role}' ga o'zgartirildi", 
@@ -573,6 +720,9 @@ namespace TestPlatform.WebApi.Controllers
         {
             var user = await _db.Users.FindAsync(id);
             if (user == null) return NotFound(new { success = false, statusCode = 404, message = "Foydalanuvchi topilmadi" });
+
+            var userName = user.FullName;
+            var userEmail = user.Email;
             
             var attempts = await _db.TestAttempts.Where(a => a.StudentId == id).ToListAsync();
             var attemptIds = attempts.Select(a => a.Id).ToList();
@@ -588,6 +738,19 @@ namespace TestPlatform.WebApi.Controllers
 
             _db.Users.Remove(user);
             await _db.SaveChangesAsync();
+
+            var adminName = User.FindFirstValue(ClaimTypes.Name) ?? "Admin";
+            _db.AuditLogs.Add(new AuditLog
+            {
+                UserName = adminName,
+                Action = "USER_DELETE",
+                EntityName = "User",
+                EntityId = id.ToString(),
+                Details = $"Admin {userName} ({userEmail}) foydalanuvchisini va barcha natijalarini tizimdan o'chirdi",
+                CreatedAt = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync();
+
             return Ok(new { success = true, statusCode = 200, message = "Foydalanuvchi va uning barcha ma'lumotlari o'chirildi" });
         }
     }
