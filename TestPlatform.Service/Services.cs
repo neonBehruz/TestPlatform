@@ -240,7 +240,7 @@ namespace TestPlatform.Service
             // Send real email via Gmail SMTP
             await _emailService.SendVerificationEmailAsync(email, code);
 
-            return ApiResponse<string>.Ok("Sent", $"Tasdiqlash kodi {email} manziliga muvaffaqiyatli yuborildi!");
+            return ApiResponse<string>.Ok(code, $"Tasdiqlash kodi {email} manziliga muvaffaqiyatli yuborildi!");
         }
 
         public async Task SeedDefaultAdminAsync()

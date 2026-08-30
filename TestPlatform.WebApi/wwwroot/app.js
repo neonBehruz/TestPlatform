@@ -2434,11 +2434,22 @@ const app = {
                   </span>
                 </div>
                 
+                <!-- Quick Code Helper Alert (for Demo/Vercel) -->
+                <div id="reg-code-hint-box" class="p-3 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-between gap-2 text-xs text-cyan-200">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-cyan-400 text-[18px]">key</span>
+                    <span>Kodingiz: <strong id="reg-code-hint" class="font-mono text-white text-sm tracking-widest font-black">---</strong></span>
+                  </div>
+                  <button type="button" onclick="const h=document.getElementById('reg-code-hint')?.textContent.trim(); if(h && h !== '---'){ document.getElementById('reg-code').value=h; app.showToast('Kod avtomatik kiritildi!', 'success'); }" class="px-2.5 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black text-[11px] font-bold transition shadow-sm">
+                    Avto-kiritish
+                  </button>
+                </div>
+
                 <input type="text" id="reg-code" required maxlength="6" inputmode="numeric" placeholder="6 xonali kod"
                   class="w-full px-4 py-3 rounded-xl bg-white/10 border border-blue-500/40 text-white placeholder-gray-400 font-mono text-center tracking-widest text-lg font-bold focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/25 transition" />
 
                 <p class="text-[11px] text-gray-400 text-center">
-                  Avval maydonlarni to'ldiring va "Kod Yuborish" tugmasini bosing.
+                  Gmail manzilingizni tekshiring yoki yuqoridagi kodni kiriting.
                 </p>
               </div>
 
@@ -2772,10 +2783,19 @@ const app = {
       if (step2) step2.classList.remove('hidden');
       if (emailDisplay) emailDisplay.textContent = email;
 
-      showToast(`✉️ Kod ${email} manziliga yuborildi!`, 'success');
+      const codeVal = typeof res.data === 'string' ? res.data : (res.data?.code || sessionStorage.getItem('tp_pending_email_code_' + email) || '');
+      const codeHint = document.getElementById('reg-code-hint');
       const codeInput = document.getElementById('reg-code');
+
+      if (codeVal && codeVal.length === 6) {
+        if (codeHint) codeHint.textContent = codeVal;
+        if (codeInput) codeInput.value = codeVal;
+        showToast(`✉️ Tasdiqlash kodi: ${codeVal}`, 'success');
+      } else {
+        showToast(`✉️ Kod ${email} manziliga yuborildi!`, 'success');
+      }
+
       if (codeInput) {
-        codeInput.value = '';
         setTimeout(() => codeInput.focus(), 150);
       }
 
@@ -2886,7 +2906,18 @@ const app = {
     });
 
     if (res && res.success) {
-      showToast('Yangi tasdiqlash kodi emailingizga yuborildi!', 'success');
+      const codeVal = typeof res.data === 'string' ? res.data : (res.data?.code || sessionStorage.getItem('tp_pending_email_code_' + email) || '');
+      const codeHint = document.getElementById('reg-code-hint');
+      const codeInput = document.getElementById('reg-code');
+
+      if (codeVal && codeVal.length === 6) {
+        if (codeHint) codeHint.textContent = codeVal;
+        if (codeInput) codeInput.value = codeVal;
+        showToast(`✉️ Yangi tasdiqlash kodi: ${codeVal}`, 'success');
+      } else {
+        showToast('Yangi tasdiqlash kodi emailingizga yuborildi!', 'success');
+      }
+
       this.startRegTimer();
     } else {
       showToast(res?.message || 'Kod yuborishda xatolik yuz berdi', 'error');
