@@ -3089,13 +3089,17 @@ const app = {
     const modal = document.getElementById('modal-container');
     if (!modal) return;
     document.body.classList.add('modal-open');
+    document.documentElement.classList.add('modal-open');
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
     modal.innerHTML = `
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn" style="overscroll-behavior: contain;" onclick="if(event.target === this) app.closeModal()">
-        <div class="glass-panel p-6 sm:p-8 rounded-3xl w-full ${maxWidthClass} border border-white/10 shadow-2xl relative animate-scaleUp max-h-[92vh] flex flex-col" style="overscroll-behavior: contain;">
-          <button onclick="app.closeModal()" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center transition z-10">
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn" style="overscroll-behavior: contain; touch-action: none;" onclick="if(event.target === this) app.closeModal()">
+        <div class="glass-panel p-5 sm:p-7 rounded-3xl w-full ${maxWidthClass} border border-white/10 shadow-2xl relative animate-scaleUp max-h-[88vh] flex flex-col overflow-hidden" style="overscroll-behavior: contain;" onclick="event.stopPropagation()">
+          <button onclick="app.closeModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-gray-400 hover:text-white flex items-center justify-center transition z-20" title="Yopish">
             <span class="material-symbols-outlined text-lg">close</span>
           </button>
-          <div class="overflow-y-auto max-h-[82vh] pr-1.5 space-y-4">
+          <div class="overflow-y-auto max-h-[calc(88vh-2.5rem)] pr-1.5 py-1 space-y-4 custom-modal-scroll" style="overscroll-behavior: contain; -webkit-overflow-scrolling: touch;">
             ${contentHtml}
           </div>
         </div>
