@@ -73,47 +73,109 @@ namespace TestPlatform.Service
                 var mail = new MailMessage
                 {
                     From = new MailAddress(senderEmail, senderName),
-                    Subject = $"{code} - Test Platformasi Tasdiqlash Kodi",
+                    Subject = $"🔐 {code} — Test Platformasi tasdiqlash kodi",
                     IsBodyHtml = true,
                     Priority = MailPriority.High,
-                    Body = $@"
-<!DOCTYPE html>
-<html>
+                    Body = $@"<!DOCTYPE html>
+<html lang=""uz"">
 <head>
-  <meta charset='utf-8'>
-  <style>
-    body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f19; margin: 0; padding: 24px; color: #f8fafc; }}
-    .card {{ max-width: 520px; margin: 0 auto; background: #151c2e; border-radius: 20px; padding: 36px; border: 1px solid #23304d; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }}
-    .logo-badge {{ display: inline-block; background: linear-gradient(135deg, #2563eb, #4f46e5); color: #fff; width: 48px; height: 48px; line-height: 48px; border-radius: 14px; text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 16px; }}
-    .title {{ font-size: 22px; font-weight: 800; color: #ffffff; margin: 0 0 8px; }}
-    .subtitle {{ color: #94a3b8; font-size: 13px; margin: 0 0 24px; }}
-    .code-box {{ background: #0b0f19; border: 2px dashed #3b82f6; border-radius: 14px; padding: 18px; text-align: center; margin: 24px 0; }}
-    .code {{ font-size: 36px; font-weight: 900; letter-spacing: 8px; color: #38bdf8; font-family: 'Courier New', monospace; }}
-    .note {{ font-size: 12px; color: #64748b; margin-top: 16px; line-height: 1.5; }}
-    .footer {{ text-align: center; font-size: 11px; color: #475569; margin-top: 30px; border-top: 1px solid #1e293b; padding-top: 16px; }}
-  </style>
+  <meta charset=""utf-8"">
+  <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+  <title>Tasdiqlash Kodi</title>
 </head>
-<body>
-  <div class='card'>
-    <div style='text-align: center;'>
-      <div class='logo-badge'>🎓</div>
-      <h1 class='title'>Test Platformasi</h1>
-      <p class='subtitle'>Email Manzilni Tasdiqlash</p>
-    </div>
-    <p style='font-size:14px; color:#e2e8f0; line-height: 1.6; margin: 0;'>
-      Assalomu alaykum! Platformada ro'yxatdan o'tishni davom ettirish uchun quyidagi 6 xonali tasdiqlash kodidan foydalaning:
-    </p>
-    <div class='code-box'>
-      <div class='code'>{code}</div>
-    </div>
-    <p class='note'>
-      ⏱️ Ushbu kod <strong>10 daqiqa</strong> davomida amal qiladi.<br>
-      🔒 Xavfsizlik yuzasidan ushbu kodni hech kimga bermang.
-    </p>
-    <div class='footer'>
-      &copy; 2026 Test Platformasi. Barcha huquqlar himoyalangan.
-    </div>
+<body style=""margin: 0; padding: 0; background-color: #07090e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;"">
+  <!-- Invisible snippet preview for Gmail inbox -->
+  <div style=""display:none;font-size:1px;color:#07090e;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;"">
+    Sizning tasdiqlash kodingiz: {code}. Ushbu kod 10 daqiqa davomida amal qiladi.
   </div>
+
+  <table role=""presentation"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""background-color: #07090e; padding: 35px 15px;"">
+    <tr>
+      <td align=""center"">
+        
+        <!-- Main Card -->
+        <table role=""presentation"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""max-width: 500px; background: #0e131f; border: 1px solid #1e293b; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8); overflow: hidden;"">
+          
+          <!-- Top Accent Line -->
+          <tr>
+            <td style=""background: linear-gradient(90deg, #3b82f6, #6366f1, #06b6d4); height: 4px; font-size: 0; line-height: 0;"">&nbsp;</td>
+          </tr>
+
+          <!-- Card Body -->
+          <tr>
+            <td style=""padding: 35px 30px 25px;"">
+              
+              <!-- Brand Header -->
+              <table role=""presentation"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"">
+                <tr>
+                  <td align=""center"" style=""padding-bottom: 25px;"">
+                    <div style=""display: inline-block; width: 54px; height: 54px; line-height: 54px; text-align: center; border-radius: 16px; background: linear-gradient(135deg, #2563eb, #4f46e5); box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35); font-size: 26px; color: #ffffff;"">
+                      🎓
+                    </div>
+                    <h1 style=""margin: 14px 0 4px; color: #ffffff; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;"">
+                      Test Platformasi
+                    </h1>
+                    <p style=""margin: 0; color: #94a3b8; font-size: 13px; font-weight: 500;"">
+                      Email Manzilni Tasdiqlash
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Greeting -->
+              <p style=""margin: 0 0 12px; color: #e2e8f0; font-size: 14px; line-height: 1.6;"">
+                Assalomu alaykum!
+              </p>
+              <p style=""margin: 0 0 20px; color: #94a3b8; font-size: 13px; line-height: 1.6;"">
+                Platformada ro'yxatdan o'tishni tasdiqlash uchun quyidagi <strong>6 xonali tasdiqlash kodi</strong>ni kiriting:
+              </p>
+
+              <!-- OTP Code Display -->
+              <table role=""presentation"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""margin: 20px 0;"">
+                <tr>
+                  <td align=""center"" style=""background: #070a12; border: 2px dashed #3b82f6; border-radius: 16px; padding: 18px 12px;"">
+                    <div style=""font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 900; letter-spacing: 10px; color: #38bdf8; text-shadow: 0 0 20px rgba(56, 189, 248, 0.4); text-align: center; padding-left: 10px;"">
+                      {code}
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Security & Validity Notice -->
+              <table role=""presentation"" border=""0"" cellpadding=""0"" cellspacing=""0"" width=""100%"" style=""background: rgba(30, 41, 59, 0.4); border: 1px solid #1e293b; border-radius: 12px; padding: 12px 16px; margin-top: 15px;"">
+                <tr>
+                  <td style=""color: #94a3b8; font-size: 12px; line-height: 1.6;"">
+                    ⏱️ Ushbu kod <strong>10 daqiqa</strong> davomida amal qiladi.<br>
+                    🔒 Xavfsizlik yuzasidan bu kodni boshqa hech kimga bermang.
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Note -->
+              <p style=""margin: 20px 0 0; color: #475569; font-size: 11px; line-height: 1.5; text-align: center;"">
+                Agar bu so'rovni siz bajarmagan bo'lsangiz, ushbu xatni e'tiborsiz qoldirishingiz mumkin.
+              </p>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style=""background-color: #070a12; padding: 18px; border-top: 1px solid #141b2d; text-align: center;"">
+              <p style=""margin: 0; color: #475569; font-size: 11px;"">
+                &copy; 2026 Test Platformasi. Barcha huquqlar himoyalangan.
+              </p>
+              <p style=""margin: 4px 0 0; color: #334155; font-size: 10px;"">
+                Avtomatik xabarnoma — javob yozmang.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
 </body>
 </html>"
                 };
@@ -167,8 +229,8 @@ namespace TestPlatform.Service
 
             email = email.Trim().ToLower();
 
-            var random = new Random();
-            var code = random.Next(100000, 999999).ToString();
+            // Truly dynamic & secure random 6-digit number between 100000 and 999999
+            var code = System.Security.Cryptography.RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
             _verificationCodes[email] = (code, DateTime.UtcNow.AddMinutes(10));
 
             Console.WriteLine($"==================================================");
