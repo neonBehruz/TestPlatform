@@ -247,6 +247,7 @@ namespace TestPlatform.Service
             if (existingUser != null)
             {
                 existingUser.FullName = formattedName;
+                existingUser.PhoneNumber = dto.PhoneNumber;
                 existingUser.PasswordHash = PasswordHasher.HashPassword(dto.Password);
                 existingUser.IsActive = true;
                 existingUser.UpdatedAt = DateTime.UtcNow;
@@ -258,6 +259,7 @@ namespace TestPlatform.Service
                 {
                     FullName = formattedName,
                     Email = email,
+                    PhoneNumber = dto.PhoneNumber,
                     PasswordHash = PasswordHasher.HashPassword(dto.Password),
                     Role = dto.Role
                 };
@@ -272,6 +274,7 @@ namespace TestPlatform.Service
                 Id = user.Id,
                 FullName = PasswordHasher.FormatFullName(user.FullName),
                 Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
                 Role = user.Role.ToString(),
                 CreatedAt = user.CreatedAt
             };
@@ -321,6 +324,7 @@ namespace TestPlatform.Service
                 Id = user.Id,
                 FullName = user.FullName,
                 Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
                 Role = user.Role.ToString(),
                 CreatedAt = user.CreatedAt
             };
@@ -339,6 +343,7 @@ namespace TestPlatform.Service
                 Id = user.Id,
                 FullName = user.FullName,
                 Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
                 Role = user.Role.ToString(),
                 CreatedAt = user.CreatedAt
             });
@@ -348,6 +353,11 @@ namespace TestPlatform.Service
         {
             var user = await _db.Users.FindAsync(userId);
             if (user == null) return ApiResponse<UserDto>.Fail("Foydalanuvchi topilmadi", 404);
+
+            if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
+            {
+                user.PhoneNumber = dto.PhoneNumber.Trim();
+            }
 
             if (!string.IsNullOrWhiteSpace(dto.Email) && dto.Email.Trim().ToLower() != user.Email.ToLower())
             {

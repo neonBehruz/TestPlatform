@@ -2270,24 +2270,26 @@ const app = {
     }
     const root = document.getElementById('app-root');
     root.innerHTML = `
-      <div class="max-w-md mx-auto my-6 sm:my-8 relative animate-entrance">
-        <!-- Glowing ambient light orbs -->
-        <div class="glow-orb w-72 h-72 bg-indigo-600/20 top-[-30px] right-[-30px]"></div>
-        <div class="glow-orb w-64 h-64 bg-blue-600/20 bottom-[-20px] left-[-20px]" style="animation-delay: -3s;"></div>
+      <div class="max-w-lg mx-auto my-6 sm:my-10 relative animate-entrance">
+        <!-- Ambient Glow Orbs -->
+        <div class="absolute -top-12 -right-12 w-80 h-80 bg-indigo-500/25 rounded-full blur-[100px] pointer-events-none animate-pulse"></div>
+        <div class="absolute -bottom-12 -left-12 w-80 h-80 bg-blue-500/25 rounded-full blur-[100px] pointer-events-none" style="animation-delay: 2s;"></div>
 
-        <!-- Holographic Shader Card -->
-        <div class="shader-card p-6 sm:p-8 space-y-6 relative z-10">
+        <!-- Luxury Glassmorphic Card -->
+        <div class="relative z-10 p-7 sm:p-9 rounded-3xl bg-[#0b0e1b]/85 backdrop-blur-2xl border border-white/15 shadow-[0_0_60px_rgba(0,0,0,0.6)] ring-1 ring-white/10 space-y-6">
           
           <!-- Top Header -->
           <div class="text-center space-y-3">
-            <div class="inline-flex relative">
-              <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 via-blue-500 to-cyan-500 text-white flex items-center justify-center mx-auto shadow-xl shadow-indigo-500/30 ring-1 ring-white/20 transform hover:scale-105 transition-transform duration-300">
-                <span class="material-symbols-outlined text-3xl">person_add</span>
+            <div class="inline-flex relative group">
+              <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 via-blue-500 to-cyan-500 p-0.5 shadow-2xl shadow-indigo-500/30 group-hover:scale-105 transition-transform duration-300">
+                <div class="w-full h-full bg-[#0d101d] rounded-2xl flex items-center justify-center">
+                  <span class="material-symbols-outlined text-transparent bg-clip-text bg-gradient-to-tr from-indigo-300 via-blue-300 to-cyan-300 text-3xl">person_add</span>
+                </div>
               </div>
             </div>
             <div>
               <h2 class="text-2xl sm:text-3xl font-black font-heading text-white tracking-tight">Yangi Hisob Ochish</h2>
-              <p class="text-xs text-gray-400 mt-1">Ma'lumotlarni to'ldiring va email orqali tasdiqlang</p>
+              <p class="text-xs text-gray-400 mt-1">Platformadan to'liq foydalanish uchun ma'lumotlarni to'ldiring</p>
             </div>
           </div>
 
@@ -2296,45 +2298,55 @@ const app = {
             <!-- Ism & Familiya -->
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-semibold text-gray-300 mb-1">Ismingiz</label>
-                <input type="text" id="reg-firstname" required placeholder="Ali" class="auth-input w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none" />
+                <label class="block text-xs font-semibold text-gray-200 mb-1">Ismingiz</label>
+                <input type="text" id="reg-firstname" required placeholder="Ali" class="auth-input w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
               </div>
               <div>
-                <label class="block text-xs font-semibold text-gray-300 mb-1">Familiyangiz</label>
-                <input type="text" id="reg-lastname" required placeholder="Valiyev" class="auth-input w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none" />
+                <label class="block text-xs font-semibold text-gray-200 mb-1">Familiyangiz</label>
+                <input type="text" id="reg-lastname" required placeholder="Valiyev" class="auth-input w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
               </div>
             </div>
 
             <!-- Email -->
             <div>
-              <label class="block text-xs font-semibold text-gray-300 mb-1">Email / Gmail Manzil</label>
+              <label class="block text-xs font-semibold text-gray-200 mb-1">Email / Gmail Manzil</label>
               <div class="relative">
                 <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">mail</span>
-                <input type="email" id="reg-email" required placeholder="ali.valiyev@gmail.com" class="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none" />
+                <input type="email" id="reg-email" required placeholder="ali.valiyev@gmail.com" class="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
+              </div>
+            </div>
+
+            <!-- Telefon Raqam (Phone Number) -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-200 mb-1">Telefon Raqamingiz</label>
+              <div class="relative">
+                <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">phone_iphone</span>
+                <input type="tel" id="reg-phone" required placeholder="+998 (90) 123-45-67" class="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
               </div>
             </div>
 
             <!-- Parol -->
-            <div>
-              <label class="block text-xs font-semibold text-gray-300 mb-1">Parol</label>
-              <div class="relative">
-                <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">lock</span>
-                <input type="password" id="reg-password" required minlength="4" placeholder="Kamida 4 ta belgi" class="auth-input w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none" />
-                <button type="button" onclick="app.togglePassword('reg-password', 'reg-eye-icon1')" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200 transition">
-                  <span id="reg-eye-icon1" class="material-symbols-outlined text-[18px]">visibility</span>
-                </button>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-gray-200 mb-1">Parol</label>
+                <div class="relative">
+                  <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">lock</span>
+                  <input type="password" id="reg-password" required minlength="4" placeholder="••••••••" class="auth-input w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
+                  <button type="button" onclick="app.togglePassword('reg-password', 'reg-eye-icon1')" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200 transition">
+                    <span id="reg-eye-icon1" class="material-symbols-outlined text-[18px]">visibility</span>
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <!-- Parolni Tasdiqlang -->
-            <div>
-              <label class="block text-xs font-semibold text-gray-300 mb-1">Parolni Tasdiqlang</label>
-              <div class="relative">
-                <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">verified_user</span>
-                <input type="password" id="reg-confirm-password" required minlength="4" placeholder="Parolni qayta tering" class="auth-input w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none" />
-                <button type="button" onclick="app.togglePassword('reg-confirm-password', 'reg-eye-icon2')" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200 transition">
-                  <span id="reg-eye-icon2" class="material-symbols-outlined text-[18px]">visibility</span>
-                </button>
+              <div>
+                <label class="block text-xs font-semibold text-gray-200 mb-1">Tasdiqlash</label>
+                <div class="relative">
+                  <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">lock_open</span>
+                  <input type="password" id="reg-confirm-password" required minlength="4" placeholder="••••••••" class="auth-input w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
+                  <button type="button" onclick="app.togglePassword('reg-confirm-password', 'reg-eye-icon2')" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200 transition">
+                    <span id="reg-eye-icon2" class="material-symbols-outlined text-[18px]">visibility</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -2353,15 +2365,16 @@ const app = {
             </div>
 
             <!-- Submit Button -->
-            <button type="submit" id="btn-reg-submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs glow-button-primary transition shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2">
-              <span class="material-symbols-outlined text-[18px]">how_to_reg</span> Ro'yxatdan O'tish
+            <button type="submit" id="btn-reg-submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs glow-button-primary transition shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
+              <span class="material-symbols-outlined text-[18px]">how_to_reg</span>
+              <span>Ro'yxatdan O'tish</span>
             </button>
           </form>
 
           <div class="pt-3 border-t border-white/10 text-center">
             <p class="text-xs text-gray-400">
               Allaqachon hisobingiz bormi? 
-              <a href="#/login" class="text-blue-400 font-bold hover:text-blue-300 transition">Tizimga kiring</a>
+              <a href="#/login" class="text-blue-400 font-bold hover:text-cyan-300 transition">Tizimga kiring</a>
             </p>
           </div>
 
@@ -2588,6 +2601,7 @@ const app = {
     const firstName = document.getElementById('reg-firstname')?.value.trim();
     const lastName = document.getElementById('reg-lastname')?.value.trim();
     const email = document.getElementById('reg-email')?.value.trim();
+    const phone = document.getElementById('reg-phone')?.value.trim();
     const password = document.getElementById('reg-password')?.value;
     const confirmPassword = document.getElementById('reg-confirm-password')?.value;
 
@@ -2604,6 +2618,11 @@ const app = {
     if (!email) {
       showToast('Iltimos, email manzilingizni kiriting!', 'error');
       document.getElementById('reg-email')?.focus();
+      return;
+    }
+    if (!phone) {
+      showToast('Iltimos, telefon raqamingizni kiriting!', 'error');
+      document.getElementById('reg-phone')?.focus();
       return;
     }
     if (!password || password.length < 4) {
@@ -2723,10 +2742,17 @@ const app = {
     const firstName = rawFirst ? rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase() : '';
     const lastName = rawLast ? rawLast.charAt(0).toUpperCase() + rawLast.slice(1).toLowerCase() : '';
     const email = document.getElementById('reg-email').value.trim();
+    const phone = (document.getElementById('reg-phone')?.value || '').trim();
     const verificationCode = document.getElementById('reg-code').value.trim();
     const password = document.getElementById('reg-password').value;
     const confirmPassword = document.getElementById('reg-confirm-password').value;
     const btn = document.getElementById('btn-reg-submit');
+
+    if (!phone) {
+      showToast('Iltimos, telefon raqamingizni kiriting!', 'error');
+      document.getElementById('reg-phone')?.focus();
+      return;
+    }
 
     if (!verificationCode) {
       showToast('Iltimos, emailga yuborilgan tasdiqlash kodini kiriting!', 'error');
@@ -2747,6 +2773,7 @@ const app = {
     const payload = {
       fullName: `${firstName} ${lastName}`.trim(),
       email,
+      phoneNumber: phone,
       password,
       verificationCode,
       role: 2 // Student
@@ -2760,7 +2787,7 @@ const app = {
     if (res.success && res.data) {
       saveSession(res.data.token, res.data.user);
       this.updateNavAuth();
-      recordAuditLog('USER_REGISTER', 'User', email, `Yangi talaba ro'yxatdan o'tdi: ${payload.fullName} (${email})`, payload.fullName);
+      recordAuditLog('USER_REGISTER', 'User', email, `Yangi talaba ro'yxatdan o'tdi: ${payload.fullName} (${email}, Tel: ${phone})`, payload.fullName);
       showToast('Muvaffaqiyatli ro\'yxatdan o\'tdingiz!', 'success');
       setTimeout(() => { window.location.hash = '#/tests'; }, 250);
     } else {
