@@ -2135,45 +2135,97 @@ const app = {
   // ----------------------------------------------------
   // VIEW 1: AUTH (LOGIN & REGISTER WITH EMAIL VERIFICATION CODE)
   // ----------------------------------------------------
+  quickFillLogin(role) {
+    const emailInput = document.getElementById('login-email');
+    const passInput = document.getElementById('login-password');
+    if (!emailInput || !passInput) return;
+
+    if (role === 'admin') {
+      emailInput.value = 'behruzsagdullayev0707@gmail.com';
+      passInput.value = 'Admin123!';
+    } else if (role === 'teacher') {
+      emailInput.value = 'teacher@testplatform.uz';
+      passInput.value = 'Teacher123!';
+    } else if (role === 'student') {
+      emailInput.value = 'student@testplatform.uz';
+      passInput.value = 'Student123!';
+    }
+
+    // Highlight button active state
+    document.querySelectorAll('.role-tab-btn').forEach(btn => {
+      btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-400', 'shadow-md', 'shadow-blue-500/30');
+      btn.classList.add('bg-white/5', 'text-gray-400', 'border-white/10');
+    });
+    const activeBtn = document.getElementById(`tab-role-${role}`);
+    if (activeBtn) {
+      activeBtn.classList.remove('bg-white/5', 'text-gray-400', 'border-white/10');
+      activeBtn.classList.add('bg-gradient-to-r', 'from-blue-600', 'to-indigo-600', 'text-white', 'border-blue-400/50', 'shadow-md', 'shadow-blue-500/30');
+    }
+  },
+
   renderLogin() {
     const root = document.getElementById('app-root');
     if (!root) return;
 
     root.innerHTML = `
-      <div class="max-w-md mx-auto my-8 sm:my-12 relative animate-entrance">
-        <!-- Glowing ambient light orbs behind card -->
-        <div class="glow-orb w-72 h-72 bg-blue-600/20 top-[-30px] left-[-30px]"></div>
-        <div class="glow-orb w-64 h-64 bg-purple-600/20 bottom-[-20px] right-[-20px]" style="animation-delay: -4s;"></div>
+      <div class="max-w-lg mx-auto my-6 sm:my-10 relative animate-entrance">
+        
+        <!-- Ambient Iridescent Glow Orbs behind card -->
+        <div class="absolute -top-12 -left-12 w-80 h-80 bg-blue-500/25 rounded-full blur-[100px] pointer-events-none animate-pulse"></div>
+        <div class="absolute -bottom-12 -right-12 w-80 h-80 bg-indigo-500/25 rounded-full blur-[100px] pointer-events-none" style="animation-delay: 2s;"></div>
 
-        <!-- Holographic Shader Card -->
-        <div class="shader-card p-6 sm:p-8 space-y-6 relative z-10">
+        <!-- Luxury Glassmorphic Login Card -->
+        <div class="relative z-10 p-7 sm:p-9 rounded-3xl bg-[#0b0e1b]/85 backdrop-blur-2xl border border-white/15 shadow-[0_0_60px_rgba(0,0,0,0.6)] ring-1 ring-white/10 space-y-6">
           
           <!-- Top Brand & Icon Header -->
           <div class="text-center space-y-3">
-            <div class="inline-flex relative">
-              <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-600 text-white flex items-center justify-center mx-auto shadow-xl shadow-blue-500/30 ring-1 ring-white/20 transform hover:scale-105 transition-transform duration-300">
-                <span class="material-symbols-outlined text-3xl">psychology</span>
+            <div class="inline-flex relative group">
+              <div class="w-18 h-18 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 p-0.5 shadow-2xl shadow-blue-500/30 group-hover:scale-105 transition-transform duration-300">
+                <div class="w-full h-full bg-[#0d101d] rounded-2xl flex items-center justify-center">
+                  <span class="material-symbols-outlined text-transparent bg-clip-text bg-gradient-to-tr from-blue-400 via-cyan-300 to-indigo-300 text-3xl">psychology</span>
+                </div>
               </div>
             </div>
+            
             <div>
-              <h2 class="text-2xl sm:text-3xl font-black font-heading text-white tracking-tight">Test<span class="text-blue-400">Platform</span></h2>
-              <p class="text-xs text-gray-400 mt-1">Bilimingizni sinash va yangi marralarni zabt etish platformasi</p>
+              <h2 class="text-2xl sm:text-3xl font-black font-heading text-white tracking-tight flex items-center justify-center gap-1.5">
+                Test<span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">Platform</span>
+              </h2>
+              <p class="text-xs text-gray-400 mt-1">Bilim va testlar boshqaruvining xavfsiz markazi</p>
+            </div>
+          </div>
+
+          <!-- Quick Role Autofill Selectors -->
+          <div class="space-y-1.5">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 text-center">Tezkor Demo Kirish:</div>
+            <div class="grid grid-cols-3 gap-2">
+              <button type="button" id="tab-role-admin" onclick="app.quickFillLogin('admin')" class="role-tab-btn px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-[11px] font-bold transition flex items-center justify-center gap-1">
+                <span>🛡️</span> Admin
+              </button>
+              <button type="button" id="tab-role-teacher" onclick="app.quickFillLogin('teacher')" class="role-tab-btn px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-[11px] font-bold transition flex items-center justify-center gap-1">
+                <span>👨‍🏫</span> O'qituvchi
+              </button>
+              <button type="button" id="tab-role-student" onclick="app.quickFillLogin('student')" class="role-tab-btn px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-[11px] font-bold transition flex items-center justify-center gap-1">
+                <span>🎓</span> Talaba
+              </button>
             </div>
           </div>
 
           <!-- Login Form -->
-          <form id="login-form" onsubmit="app.handleLoginSubmit(event)" class="space-y-4">
+          <form id="login-form" onsubmit="app.handleLoginSubmit(event)" class="space-y-4 pt-1">
             <div>
-              <label class="block text-xs font-semibold text-gray-300 mb-1.5">Email yoki Login</label>
+              <label class="block text-xs font-semibold text-gray-200 mb-1.5 flex items-center justify-between">
+                <span>Email yoki Login</span>
+              </label>
               <div class="relative">
                 <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">account_circle</span>
-                <input type="text" id="login-email" required placeholder="Email yoki loginni kiriting" class="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none" />
+                <input type="text" id="login-email" required placeholder="Email yoki loginni kiriting" class="auth-input w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
               </div>
             </div>
 
             <div>
               <div class="flex items-center justify-between mb-1.5">
-                <label class="block text-xs font-semibold text-gray-300">Maxfiy Parol</label>
+                <label class="block text-xs font-semibold text-gray-200">Maxfiy Parol</label>
                 <a href="#/forgot-password" class="text-[11px] text-blue-400 hover:text-blue-300 font-semibold transition flex items-center gap-1">
                   <span class="material-symbols-outlined text-[13px]">lock_reset</span>
                   Parolni unutdingizmi?
@@ -2181,23 +2233,29 @@ const app = {
               </div>
               <div class="relative">
                 <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">lock</span>
-                <input type="password" id="login-password" required placeholder="••••••••" class="auth-input w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none" />
-                <button type="button" onclick="app.togglePassword('login-password', 'login-eye-icon')" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200 transition" title="Parolni ko'rsatish/yashirish">
+                <input type="password" id="login-password" required placeholder="••••••••" class="auth-input w-full pl-10 pr-10 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
+                <button type="button" onclick="app.togglePassword('login-password', 'login-eye-icon')" class="absolute right-3 top-3 text-gray-400 hover:text-gray-200 transition" title="Parolni ko'rsatish/yashirish">
                   <span id="login-eye-icon" class="material-symbols-outlined text-[18px]">visibility</span>
                 </button>
               </div>
             </div>
 
-            <button type="submit" id="btn-login-submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs glow-button-primary transition shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2">
-              <span class="material-symbols-outlined text-[18px]">login</span> Tizimga Kirish
+            <button type="submit" id="btn-login-submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs glow-button-primary transition shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
+              <span class="material-symbols-outlined text-[18px]">login</span>
+              <span>Tizimga Kirish</span>
             </button>
           </form>
 
-          <div class="pt-4 border-t border-white/10 text-center space-y-2">
+          <!-- Footer Links & Security Badge -->
+          <div class="pt-4 border-t border-white/10 text-center space-y-3">
             <p class="text-xs text-gray-400">
               Hisobingiz mavjud emasmi? 
-              <a href="#/register" class="text-blue-400 font-bold hover:text-blue-300 transition">Ro'yxatdan o'tish</a>
+              <a href="#/register" class="text-blue-400 font-bold hover:text-cyan-300 transition">Ro'yxatdan o'tish</a>
             </p>
+            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.02] border border-white/5 text-[10px] text-gray-400">
+              <span class="material-symbols-outlined text-emerald-400 text-[13px]">verified_user</span>
+              <span>256-bit SSL xavfsiz shifrlangan tizim</span>
+            </div>
           </div>
 
         </div>

@@ -1,6 +1,6 @@
 /**
- * Modern High-Tech Perspective Grid & Cyber Waveform WebGL Engine
- * Replaces blotchy plasma with crisp, sleek neon wireframe horizon & ambient nebula glow
+ * TestPlatform - Luxury Cosmic Neural Wave & Glowing Aurora WebGL Shader Engine
+ * Silk-smooth organic fluid waves, dynamic mouse interactions, and starry particle nebula
  */
 
 (function () {
@@ -23,83 +23,103 @@
     }
   `;
 
-  // Fragment Shader
+  // Fragment Shader - Luxury Organic Neural Aurora & Fluid Glow
   const fsSource = `
     precision highp float;
     uniform vec2 u_resolution;
     uniform vec2 u_mouse;
     uniform float u_time;
 
+    // Simplex Noise / Hash helper
+    vec2 hash2(vec2 p) {
+      p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+      return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+    }
+
+    float noise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      vec2 u = f * f * (3.0 - 2.0 * f);
+      return mix(mix(dot(hash2(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0)),
+                     dot(hash2(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0)), u.x),
+                 mix(dot(hash2(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)),
+                     dot(hash2(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x), u.y);
+    }
+
+    // Fractal Brownian Motion
+    float fbm(vec2 p) {
+      float v = 0.0;
+      float a = 0.5;
+      mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.5));
+      for (int i = 0; i < 4; i++) {
+        v += a * noise(p);
+        p = rot * p * 2.0 + vec2(100.0);
+        a *= 0.5;
+      }
+      return v;
+    }
+
     void main() {
+      // Normalized coordinates centered at origin
       vec2 uv = (gl_FragCoord.xy * 2.0 - u_resolution.xy) / min(u_resolution.x, u_resolution.y);
       vec2 mouse = (u_mouse * 2.0 - u_resolution.xy) / min(u_resolution.x, u_resolution.y);
       float mouseDist = length(uv - mouse);
 
-      // Deep Dark Obsidian Background
-      vec3 col = vec3(0.04, 0.045, 0.065); // #0a0b10
+      float t = u_time * 0.25;
 
-      // Color definitions
-      vec3 glowSapphire = vec3(0.12, 0.38, 0.95); // #1f61f2
-      vec3 glowCyan     = vec3(0.04, 0.78, 0.96); // #0ac7f5
-      vec3 glowIndigo   = vec3(0.42, 0.16, 0.85); // #6b29d9
+      // Deep Dark Luxury Obsidian Space
+      vec3 col = vec3(0.035, 0.04, 0.065); // #090a11
 
-      // 1. Soft Ambient Radial Horizon Light
-      float horizon = smoothstep(0.6, -0.6, uv.y);
-      float centerGlow = 1.0 - clamp(length(uv * vec2(0.8, 1.2) - vec2(0.0, -0.2)), 0.0, 1.0);
-      centerGlow = pow(centerGlow, 2.0);
+      // Harmonious Modern Color Palette
+      vec3 colBlue   = vec3(0.12, 0.42, 0.98); // #1f6bff Electric Sapphire
+      vec3 colCyan   = vec3(0.06, 0.82, 0.96); // #0fd1f5 Vivid Cyan
+      vec3 colPurple = vec3(0.52, 0.18, 0.92); // #852eeb Deep Ultraviolet
+      vec3 colIndigo = vec3(0.25, 0.22, 0.85); // #4038d9 Royal Indigo
 
-      col += glowSapphire * centerGlow * 0.45;
-      col += glowIndigo * horizon * 0.2;
+      // 1. Organic Fluid Distortion & Waves
+      vec2 q = vec2(fbm(uv + vec2(0.0, t * 0.15)), fbm(uv + vec2(5.2, 1.3 - t * 0.12)));
+      vec2 r = vec2(fbm(uv + 4.0 * q + vec2(1.7, 9.2) + 0.15 * t), fbm(uv + 4.0 * q + vec2(8.3, 2.8) + 0.12 * t));
+      float f = fbm(uv + 3.5 * r + vec2(0.0, t * 0.2));
 
-      // Mouse interactive radial aura
-      float mouseAura = smoothstep(0.7, 0.0, mouseDist);
-      col += glowCyan * mouseAura * 0.22;
+      // Mouse interactive wave ripple
+      float mouseWave = sin(mouseDist * 8.0 - u_time * 3.0) * exp(-mouseDist * 2.5);
+      f += mouseWave * 0.2;
 
-      // 2. Perspective Camera Raycasting for Floor Grid
-      vec3 ro = vec3(0.0, 1.1, -1.6); // Camera position
-      vec3 rd = normalize(vec3(uv.x * 0.85, uv.y - 0.15, 1.0)); // Camera ray
+      // Color blending based on fluid FBM
+      vec3 fluidColor = mix(colIndigo, colBlue, clamp(f * f * 3.5, 0.0, 1.0));
+      fluidColor = mix(fluidColor, colCyan, clamp(length(q), 0.0, 1.0));
+      fluidColor = mix(fluidColor, colPurple, clamp(length(r.x), 0.0, 1.0));
 
-      // Render the perspective futuristic ground lattice
-      if (rd.y < -0.02) {
-        float t = ro.y / -rd.y;
-        vec3 p = ro + rd * t;
+      // Soft Aurora Glow Intensity
+      float auroraIntensity = pow(f + 0.35, 3.2) * 0.85;
+      col += fluidColor * auroraIntensity;
 
-        // Wave dynamics
-        float wave = sin(p.x * 1.8 + u_time * 0.7) * cos(p.z * 1.6 - u_time * 0.5) * 0.12;
-        wave += sin(length(p.xz - mouse * 2.5) * 4.0 - u_time * 2.5) * 0.06;
+      // 2. Center & Ambient Floating Glow Orbs
+      float centerGlow = 1.0 - clamp(length(uv * vec2(0.85, 1.15) - vec2(0.0, -0.1)), 0.0, 1.0);
+      col += colBlue * pow(centerGlow, 2.5) * 0.35;
+      col += colPurple * pow(centerGlow, 3.5) * 0.25;
 
-        // Smooth Cyber Grid
-        vec2 gridCoord = p.xz * 1.1 + vec2(0.0, -u_time * 0.35);
-        vec2 gridUv = abs(fract(gridCoord) - 0.5);
-        float lineDist = min(gridUv.x, gridUv.y);
-        float gridLine = smoothstep(0.045, 0.01, lineDist);
+      // Mouse Aura Glow
+      float mouseAura = smoothstep(0.8, 0.0, mouseDist);
+      col += colCyan * pow(mouseAura, 2.0) * 0.3;
 
-        // Glowing Dots at Grid Crossings
-        float dotDist = length(gridUv);
-        float gridDots = smoothstep(0.09, 0.02, dotDist) * 1.4;
-
-        // Perspective Fog / Depth attenuation
-        float fog = clamp(1.0 - t * 0.17, 0.0, 1.0);
-        fog = pow(fog, 1.7);
-
-        // Cyber Grid Lighting
-        vec3 gridCol = mix(glowSapphire, glowCyan, sin(p.z * 0.4 + u_time * 0.8) * 0.5 + 0.5);
-        col = mix(col, gridCol * 1.5, (gridLine + gridDots) * fog);
-        col += glowCyan * (wave + 0.1) * fog * 0.35;
+      // 3. Smooth Star Dust / Glowing Bokeh Points (No Blocky Pixels)
+      vec2 starUv = uv * 6.0;
+      vec2 starId = floor(starUv);
+      vec2 starF = fract(starUv) - 0.5;
+      vec2 sHash = hash2(starId);
+      float sBright = fract(sin(dot(starId, vec2(127.1, 311.7))) * 43758.5453);
+      if (sBright > 0.82) {
+        float sDist = length(starF - sHash * 0.3);
+        float starGlow = exp(-sDist * 16.0);
+        float starTwinkle = 0.5 + 0.5 * sin(u_time * 2.0 + sBright * 20.0);
+        col += mix(colCyan, colBlue, sBright) * starGlow * starTwinkle * 0.45;
       }
 
-      // 3. Floating Digital Sparkles / Stars
-      vec2 pGrid = floor(uv * 26.0);
-      float pHash = fract(sin(dot(pGrid, vec2(12.9898, 78.233))) * 43758.5453);
-      if (pHash > 0.965) {
-        float pFade = 0.5 + 0.5 * sin(u_time * 2.2 + pHash * 25.0);
-        col += glowCyan * pFade * 0.45;
-      }
-
-      // 4. Subtle Screen Vignette
+      // 4. Subtle Cinematic Vignette
       vec2 screenUv = gl_FragCoord.xy / u_resolution.xy;
-      float vig = screenUv.x * (1.0 - screenUv.x) * screenUv.y * (1.0 - screenUv.y) * 16.0;
-      col *= clamp(pow(vig, 0.2), 0.0, 1.0);
+      float vignette = screenUv.x * (1.0 - screenUv.x) * screenUv.y * (1.0 - screenUv.y) * 16.0;
+      col *= clamp(pow(vignette, 0.18), 0.0, 1.0);
 
       gl_FragColor = vec4(col, 1.0);
     }
@@ -180,8 +200,8 @@
   function render() {
     if (document.body.classList.contains('auth-page') || canvas.style.display === 'block') {
       // Smooth mouse interpolation
-      mouseX += (targetMouseX - mouseX) * 0.05;
-      mouseY += (targetMouseY - mouseY) * 0.05;
+      mouseX += (targetMouseX - mouseX) * 0.06;
+      mouseY += (targetMouseY - mouseY) * 0.06;
 
       const currentTime = (performance.now() - startTime) * 0.001;
 
