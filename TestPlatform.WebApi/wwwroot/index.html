@@ -58,22 +58,29 @@
     }
   </script>
 </head>
-<body class="bg-[#090a0f] text-[#f3f4f6] min-h-screen flex flex-col antialiased selection:bg-blue-600 selection:text-white relative">
+<body class="bg-[#07080f] text-[#f3f4f6] min-h-screen flex flex-col antialiased selection:bg-blue-600 selection:text-white relative">
+
+  <!-- Interactive WebGL Shader Canvas Background (60fps Quantum Aurora) -->
+  <canvas id="bg-shader-canvas"></canvas>
 
   <!-- FULLSCREEN INTRO OPENING ANIMATION SPLASH SCREEN -->
-  <div id="app-splash-screen" class="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-[#07080c] transition-all duration-700 select-none overflow-hidden">
+  <div id="app-splash-screen" class="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-[#07080c]/90 backdrop-blur-xl transition-all duration-700 select-none overflow-hidden">
     <!-- Animated particle / glow rings behind logo -->
-    <div class="absolute w-[420px] h-[420px] rounded-full bg-gradient-to-tr from-blue-600/30 via-indigo-600/25 to-cyan-500/25 blur-3xl animate-pulse pointer-events-none"></div>
+    <div class="absolute w-[450px] h-[450px] rounded-full bg-gradient-to-tr from-blue-600/35 via-indigo-600/30 to-cyan-400/30 blur-[90px] animate-pulse pointer-events-none"></div>
     
     <div class="relative z-10 flex flex-col items-center text-center space-y-6 max-w-sm px-6">
       
       <!-- Pulsing Neural Logo with Rotating Cyber Rings -->
       <div class="relative flex items-center justify-center">
-        <div class="absolute inset-[-14px] rounded-3xl border border-blue-500/30 animate-spin" style="animation-duration: 8s;"></div>
-        <div class="absolute inset-[-7px] rounded-3xl border border-dashed border-cyan-400/40 animate-spin" style="animation-duration: 12s; animation-direction: reverse;"></div>
+        <div class="absolute inset-[-16px] rounded-3xl border border-blue-500/30 animate-spin" style="animation-duration: 9s;"></div>
+        <div class="absolute inset-[-8px] rounded-3xl border border-dashed border-cyan-400/50 animate-spin" style="animation-duration: 13s; animation-direction: reverse;"></div>
         
-        <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 text-white flex items-center justify-center shadow-[0_0_50px_rgba(59,130,246,0.6)] ring-2 ring-white/30 transform transition-transform duration-500 hover:scale-105">
-          <span class="material-symbols-outlined text-4xl animate-pulse">psychology</span>
+        <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 text-white flex items-center justify-center shadow-[0_0_55px_rgba(59,130,246,0.65)] ring-2 ring-white/30 transform transition-transform duration-500 hover:scale-105">
+          <svg class="w-10 h-10 text-white filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+            <path d="M2 17l10 5 10-5"></path>
+            <path d="M2 12l10 5 10-5"></path>
+          </svg>
         </div>
       </div>
 
@@ -103,9 +110,6 @@
     </div>
   </div>
 
-  <!-- Interactive WebGL Shader Canvas Background (Auth Mode) -->
-  <canvas id="bg-shader-canvas"></canvas>
-
   <!-- Universal Ambient Aurora Mesh Background Layer -->
   <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
     <!-- Cyber Geometric Mesh Grid Overlay -->
@@ -132,8 +136,12 @@
       <!-- Brand Logo at Top of Sidebar (Pinned) -->
       <div class="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between shrink-0">
         <a href="#/dashboard" class="flex items-center gap-3 group">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:scale-105 transition-transform duration-300 ring-1 ring-white/20">
-            <span class="material-symbols-outlined text-white text-xl">psychology</span>
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:scale-105 transition-transform duration-300 ring-1 ring-white/20">
+            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+              <path d="M2 17l10 5 10-5"></path>
+              <path d="M2 12l10 5 10-5"></path>
+            </svg>
           </div>
           <div>
             <div class="text-base font-black font-heading tracking-tight flex items-center gap-1 text-white">
