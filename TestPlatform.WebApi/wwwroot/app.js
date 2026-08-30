@@ -2195,22 +2195,6 @@ const app = {
             </div>
           </div>
 
-          <!-- Quick Role Autofill Selectors -->
-          <div class="space-y-1.5">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 text-center">Tezkor Demo Kirish:</div>
-            <div class="grid grid-cols-3 gap-2">
-              <button type="button" id="tab-role-admin" onclick="app.quickFillLogin('admin')" class="role-tab-btn px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-[11px] font-bold transition flex items-center justify-center gap-1">
-                <span>🛡️</span> Admin
-              </button>
-              <button type="button" id="tab-role-teacher" onclick="app.quickFillLogin('teacher')" class="role-tab-btn px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-[11px] font-bold transition flex items-center justify-center gap-1">
-                <span>👨‍🏫</span> O'qituvchi
-              </button>
-              <button type="button" id="tab-role-student" onclick="app.quickFillLogin('student')" class="role-tab-btn px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-[11px] font-bold transition flex items-center justify-center gap-1">
-                <span>🎓</span> Talaba
-              </button>
-            </div>
-          </div>
-
           <!-- Login Form -->
           <form id="login-form" onsubmit="app.handleLoginSubmit(event)" class="space-y-4 pt-1">
             <div>
