@@ -40,6 +40,7 @@ namespace TestPlatform.Service.DTOs
     public class RegisterDto
     {
         public string FullName { get; set; } = string.Empty;
+        public string? Username { get; set; }
         public string Email { get; set; } = string.Empty;
         public string? PhoneNumber { get; set; }
         public string Password { get; set; } = string.Empty;
@@ -56,6 +57,7 @@ namespace TestPlatform.Service.DTOs
     public class UpdateProfileDto
     {
         public string FullName { get; set; } = string.Empty;
+        public string? Username { get; set; }
         public string Email { get; set; } = string.Empty;
         public string? PhoneNumber { get; set; }
         public string? AvatarUrl { get; set; }
@@ -79,6 +81,7 @@ namespace TestPlatform.Service.DTOs
     {
         public Guid Id { get; set; }
         public string FullName { get; set; } = string.Empty;
+        public string? Username { get; set; }
         public string Email { get; set; } = string.Empty;
         public string? PhoneNumber { get; set; }
         public string? AvatarUrl { get; set; }

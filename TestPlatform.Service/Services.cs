@@ -258,6 +258,7 @@ namespace TestPlatform.Service
                 admin = new User
                 {
                     FullName = "Tizim Administratori",
+                    Username = "admin",
                     Email = "admin@testplatform.uz",
                     PasswordHash = PasswordHasher.HashPassword("10021978"),
                     Role = UserRole.Admin,
@@ -269,6 +270,7 @@ namespace TestPlatform.Service
             else
             {
                 admin.FullName = "Tizim Administratori";
+                admin.Username = "admin";
                 admin.Email = "admin@testplatform.uz";
                 admin.PasswordHash = PasswordHasher.HashPassword("10021978");
                 admin.Role = UserRole.Admin;
@@ -282,6 +284,7 @@ namespace TestPlatform.Service
                 student = new User
                 {
                     FullName = "Ali Valiyev (Talaba Demo)",
+                    Username = "talaba",
                     Email = "talaba@gmail.com",
                     PhoneNumber = "+998 90 123 45 67",
                     PasswordHash = PasswordHasher.HashPassword("123456"),
@@ -299,6 +302,20 @@ namespace TestPlatform.Service
                 return ApiResponse<AuthResponseDto>.Fail("Email va parol kiritilishi shart", 400);
 
             var email = dto.Email.Trim().ToLower();
+            var username = dto.Username?.Trim().ToLower();
+
+            // 1. Check if Username already exists
+            if (!string.IsNullOrWhiteSpace(username))
+            {
+                if (await _db.Users.AnyAsync(u => u.Username != null && u.Username.ToLower() == username))
+                {
+                    return ApiResponse<AuthResponseDto>.Fail("Bunday login avvaldan mavjud! Iltimos, boshqa login tanlang.", 400);
+                }
+            }
+            else
+            {
+                username = email.Split('@')[0];
+            }
 
             if (string.IsNullOrWhiteSpace(dto.VerificationCode))
                 return ApiResponse<AuthResponseDto>.Fail("Emailga yuborilgan 6 xonali tasdiqlash kodini kiriting", 400);
@@ -325,6 +342,7 @@ namespace TestPlatform.Service
             if (existingUser != null)
             {
                 existingUser.FullName = formattedName;
+                existingUser.Username = username;
                 existingUser.PhoneNumber = dto.PhoneNumber;
                 existingUser.PasswordHash = PasswordHasher.HashPassword(dto.Password);
                 existingUser.IsActive = true;
@@ -336,6 +354,7 @@ namespace TestPlatform.Service
                 user = new User
                 {
                     FullName = formattedName,
+                    Username = username,
                     Email = email,
                     PhoneNumber = dto.PhoneNumber,
                     PasswordHash = PasswordHasher.HashPassword(dto.Password),
@@ -351,6 +370,7 @@ namespace TestPlatform.Service
             {
                 Id = user.Id,
                 FullName = PasswordHasher.FormatFullName(user.FullName),
+                Username = user.Username,
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
                 AvatarUrl = user.AvatarUrl,
@@ -364,19 +384,21 @@ namespace TestPlatform.Service
         public async Task<ApiResponse<AuthResponseDto>> LoginAsync(LoginDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
-                return ApiResponse<AuthResponseDto>.Fail("Email/Username va parol kiritilishi shart", 400);
+                return ApiResponse<AuthResponseDto>.Fail("Email/Login va parol kiritilishi shart", 400);
 
             var input = dto.Email.Trim().ToLower();
 
-            // Support exact email match, 'admin' alias, or email starting with input
+            // Support exact email match, username match, 'admin' alias, or email starting with input
             var user = await _db.Users.FirstOrDefaultAsync(u => 
                 u.Email.ToLower() == input || 
+                (u.Username != null && u.Username.ToLower() == input) ||
+                (u.PhoneNumber != null && u.PhoneNumber == input) ||
                 ((input == "admin" || input == "administrator" || input == "admin@testplatform.uz" || input == "admin@testplatform.com") && u.Role == UserRole.Admin) ||
                 u.Email.ToLower().StartsWith(input + "@") ||
                 u.FullName.ToLower() == input);
 
             if (user == null)
-                return ApiResponse<AuthResponseDto>.Fail("Email yoki parol noto'g'ri", 401);
+                return ApiResponse<AuthResponseDto>.Fail("Email/Login yoki parol noto'g'ri", 401);
 
             bool isPasswordCorrect = PasswordHasher.VerifyPassword(dto.Password, user.PasswordHash);
 
@@ -392,7 +414,7 @@ namespace TestPlatform.Service
             }
 
             if (!isPasswordCorrect)
-                return ApiResponse<AuthResponseDto>.Fail("Email yoki parol noto'g'ri", 401);
+                return ApiResponse<AuthResponseDto>.Fail("Email/Login yoki parol noto'g'ri", 401);
 
             if (!user.IsActive)
                 return ApiResponse<AuthResponseDto>.Fail("Foydalanuvchi hisobi faol emas", 403);
@@ -402,6 +424,7 @@ namespace TestPlatform.Service
             {
                 Id = user.Id,
                 FullName = user.FullName,
+                Username = user.Username,
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
                 AvatarUrl = user.AvatarUrl,
@@ -422,6 +445,7 @@ namespace TestPlatform.Service
             {
                 Id = user.Id,
                 FullName = user.FullName,
+                Username = user.Username,
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
                 AvatarUrl = user.AvatarUrl,
@@ -438,6 +462,16 @@ namespace TestPlatform.Service
             if (dto.AvatarUrl != null)
             {
                 user.AvatarUrl = dto.AvatarUrl;
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.Username))
+            {
+                var newUsername = dto.Username.Trim().ToLower();
+                if (await _db.Users.AnyAsync(u => u.Username != null && u.Username.ToLower() == newUsername && u.Id != userId))
+                {
+                    return ApiResponse<UserDto>.Fail("Ushbu login boshqa foydalanuvchi tomonidan band qilingan", 400);
+                }
+                user.Username = newUsername;
             }
 
             if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
@@ -483,6 +517,7 @@ namespace TestPlatform.Service
             {
                 Id = user.Id,
                 FullName = user.FullName,
+                Username = user.Username,
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
                 AvatarUrl = user.AvatarUrl,

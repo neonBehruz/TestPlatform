@@ -2212,7 +2212,7 @@ const app = {
               </label>
               <div class="relative">
                 <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">account_circle</span>
-                <input type="text" id="login-email" required placeholder="Email yoki loginni kiriting" class="auth-input w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
+                <input type="text" id="login-email" required placeholder="Email yoki profilingiz logini (masalan: ali_valiyev)" class="auth-input w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
               </div>
             </div>
 
@@ -2315,6 +2315,19 @@ const app = {
                   <label class="block text-xs font-semibold text-gray-200 mb-1">Familiyangiz</label>
                   <input type="text" id="reg-lastname" required placeholder="Valiyev" class="auth-input w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
                 </div>
+              </div>
+
+              <!-- Login (Username) -->
+              <div>
+                <label class="block text-xs font-semibold text-gray-200 mb-1 flex items-center justify-between">
+                  <span>Foydalanuvchi Logini</span>
+                  <span class="text-[10px] text-gray-400 font-normal">Kirish uchun login</span>
+                </label>
+                <div class="relative">
+                  <span class="material-symbols-outlined absolute left-3.5 top-3 text-gray-400 text-[18px]">alternate_email</span>
+                  <input type="text" id="reg-username" required placeholder="ali_valiyev" class="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
+                </div>
+                <p class="text-[10px] text-gray-400 mt-1">Saytga kirishda ushbu logindan yoki emailingizdan foydalanishingiz mumkin.</p>
               </div>
 
               <!-- Email -->
@@ -2684,6 +2697,7 @@ const app = {
     e?.preventDefault?.();
     const firstName = (document.getElementById('reg-firstname')?.value || '').trim();
     const lastName = (document.getElementById('reg-lastname')?.value || '').trim();
+    const username = (document.getElementById('reg-username')?.value || '').trim().toLowerCase();
     const email = (document.getElementById('reg-email')?.value || '').trim().toLowerCase();
     const phone = (document.getElementById('reg-phone')?.value || '').trim();
     const password = document.getElementById('reg-password')?.value || '';
@@ -2697,6 +2711,11 @@ const app = {
     if (!lastName) {
       showToast('Iltimos, familiyangizni kiriting!', 'error');
       document.getElementById('reg-lastname')?.focus();
+      return;
+    }
+    if (!username) {
+      showToast('Iltimos, profilingiz uchun login kiriting!', 'error');
+      document.getElementById('reg-username')?.focus();
       return;
     }
     if (!email || !email.includes('@')) {
@@ -2760,6 +2779,67 @@ const app = {
       this.startRegTimer();
     } else {
       showToast(res?.message || 'Kod yuborishda xatolik yuz berdi', 'error');
+    }
+  },
+
+  async handleRegisterSubmit(e) {
+    e?.preventDefault?.();
+    const code = (document.getElementById('reg-code')?.value || '').trim();
+    const firstName = (document.getElementById('reg-firstname')?.value || '').trim();
+    const lastName = (document.getElementById('reg-lastname')?.value || '').trim();
+    const username = (document.getElementById('reg-username')?.value || '').trim().toLowerCase();
+    const email = (document.getElementById('reg-email')?.value || '').trim().toLowerCase();
+    const phone = (document.getElementById('reg-phone')?.value || '').trim();
+    const password = document.getElementById('reg-password')?.value || '';
+
+    if (!code || code.length < 6) {
+      showToast('Iltimos, 6 xonali tasdiqlash kodini kiriting!', 'error');
+      document.getElementById('reg-code')?.focus();
+      return;
+    }
+
+    const btn = document.getElementById('btn-reg-submit');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">refresh</span> Tekshirilmoqda...';
+    }
+
+    const fullName = `${firstName} ${lastName}`.trim();
+    const res = await api('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        fullName,
+        username,
+        email,
+        phoneNumber: phone,
+        password,
+        verificationCode: code
+      })
+    });
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">how_to_reg</span> <span>Ro\'yxatdan O\'tish</span>';
+    }
+
+    if (res && res.success && res.data) {
+      saveSession(res.data.token, res.data.user);
+      this.updateNavAuth();
+      showToast(`🎉 Xush kelibsiz, ${res.data.user.fullName || username}! Muvaffaqiyatli ro'yxatdan o'tdingiz.`, 'success');
+      setTimeout(() => {
+        window.location.hash = '#/dashboard';
+      }, 300);
+    } else {
+      showToast(res?.message || 'Ro\'yxatdan o\'tishda xatolik yuz berdi!', 'error');
+      // If login/username error, bring user back to Step 1 so they can change the username
+      if (res?.message && res.message.toLowerCase().includes('login')) {
+        this.backToRegisterStep1();
+        const uInp = document.getElementById('reg-username');
+        if (uInp) {
+          uInp.focus();
+          uInp.select();
+        }
+      }
     }
   },
 
