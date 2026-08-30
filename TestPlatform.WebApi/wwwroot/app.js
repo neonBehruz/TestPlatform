@@ -245,7 +245,7 @@ async function initStandaloneData() {
         });
       }
 
-      // Merge custom tests from localStorage
+      // Merge custom tests & subjects from localStorage
       try {
         const customTests = JSON.parse(localStorage.getItem('tp_custom_tests') || '[]');
         if (Array.isArray(customTests)) {
@@ -261,6 +261,11 @@ async function initStandaloneData() {
         }
       } catch (e) {}
 
+      // Calculate testsCount dynamically
+      subjects.forEach(s => {
+        s.testsCount = tests.filter(t => t.subjectId === s.id || (t.subjectName || '').toLowerCase() === (s.name || '').toLowerCase()).length;
+      });
+
       _standaloneData = { subjects, tests };
       return _standaloneData;
     }
@@ -268,20 +273,22 @@ async function initStandaloneData() {
     console.warn('data/tests.json yuklanmadi:', e);
   }
 
-  // Built-in emergency subjects & tests if file not fetched
-  const fallbackSubjects = [
-    { id: 'subj-1', name: 'Dasturlash (IT)', description: 'Python, JS va Web dasturlash', testsCount: 3 },
-    { id: 'subj-2', name: 'Matematika', description: 'Matematika va mantiq', testsCount: 3 },
-    { id: 'subj-3', name: 'Ingliz tili', description: 'Grammatika va lug\'at', testsCount: 3 }
-  ];
-
-  let fallbackTests = [];
+  let customSubjs = [];
   try {
-    const customTests = JSON.parse(localStorage.getItem('tp_custom_tests') || '[]');
-    if (Array.isArray(customTests)) fallbackTests = customTests;
+    customSubjs = JSON.parse(localStorage.getItem('tp_custom_subjects') || '[]');
   } catch (e) {}
 
-  _standaloneData = { subjects: fallbackSubjects, tests: fallbackTests };
+  let customTests = [];
+  try {
+    customTests = JSON.parse(localStorage.getItem('tp_custom_tests') || '[]');
+  } catch (e) {}
+
+  // Calculate testsCount
+  customSubjs.forEach(s => {
+    s.testsCount = customTests.filter(t => t.subjectId === s.id || (t.subjectName || '').toLowerCase() === (s.name || '').toLowerCase()).length;
+  });
+
+  _standaloneData = { subjects: customSubjs, tests: customTests };
   return _standaloneData;
 }
 
@@ -567,6 +574,10 @@ async function handleStandaloneFallback(endpoint, options = {}) {
 
   // 4. Subjects
   if (endpoint === '/api/subjects' && method === 'GET') {
+    // Recalculate testsCount for each subject
+    data.subjects.forEach(s => {
+      s.testsCount = data.tests.filter(t => t.subjectId === s.id || (t.subjectName || '').toLowerCase() === (s.name || '').toLowerCase()).length;
+    });
     return { success: true, statusCode: 200, data: data.subjects };
   }
   if (endpoint === '/api/subjects' && method === 'POST') {
@@ -583,6 +594,48 @@ async function handleStandaloneFallback(endpoint, options = {}) {
       localStorage.setItem('tp_custom_subjects', JSON.stringify(customSubjs));
     } catch (e) {}
     return { success: true, statusCode: 200, message: "Fan yaratildi", data: newSubj };
+  }
+  if (endpoint.startsWith('/api/subjects/') && method === 'DELETE') {
+    const parts = endpoint.split('/');
+    const subjId = parts[3];
+    const idx = data.subjects.findIndex(s => s.id === subjId);
+    if (idx >= 0) data.subjects.splice(idx, 1);
+    data.tests = data.tests.filter(t => t.subjectId !== subjId);
+    try {
+      let customSubjs = JSON.parse(localStorage.getItem('tp_custom_subjects') || '[]');
+      customSubjs = customSubjs.filter(s => s.id !== subjId);
+      localStorage.setItem('tp_custom_subjects', JSON.stringify(customSubjs));
+
+      let customTests = JSON.parse(localStorage.getItem('tp_custom_tests') || '[]');
+      customTests = customTests.filter(t => t.subjectId !== subjId);
+      localStorage.setItem('tp_custom_tests', JSON.stringify(customTests));
+    } catch (e) {}
+    return { success: true, statusCode: 200, message: "Fan muvaffaqiyatli o'chirildi" };
+  }
+  if (endpoint.startsWith('/api/subjects/') && method === 'PUT') {
+    const parts = endpoint.split('/');
+    const subjId = parts[3];
+    const subj = data.subjects.find(s => s.id === subjId);
+    if (subj) {
+      if (body.name) subj.name = body.name;
+      if (body.description !== undefined) subj.description = body.description;
+      try {
+        const customSubjs = JSON.parse(localStorage.getItem('tp_custom_subjects') || '[]');
+        const cIdx = customSubjs.findIndex(s => s.id === subjId);
+        if (cIdx >= 0) {
+          customSubjs[cIdx] = subj;
+          localStorage.setItem('tp_custom_subjects', JSON.stringify(customSubjs));
+        }
+      } catch (e) {}
+    }
+    return { success: true, statusCode: 200, message: "Fan tahrirlandi", data: subj };
+  }
+  if (endpoint.startsWith('/api/subjects/') && method === 'GET') {
+    const parts = endpoint.split('/');
+    const subjId = parts[3];
+    const subj = data.subjects.find(s => s.id === subjId);
+    if (subj) return { success: true, statusCode: 200, data: subj };
+    return { success: false, statusCode: 404, message: "Fan topilmadi" };
   }
 
   // 5. Questions Creation (POST /api/tests/{testId}/questions)
