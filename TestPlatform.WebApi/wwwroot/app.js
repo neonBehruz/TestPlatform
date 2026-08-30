@@ -280,23 +280,24 @@ async function handleStandaloneFallback(endpoint, options = {}) {
   if (endpoint === '/api/auth/login') {
     const email = (body.email || '').trim().toLowerCase();
     const pass = body.password || '';
-    const isAdminEmail = email === 'behruzsagdullayev0707@gmail.com' || email === 'behruz' || email === 'admin' || email === 'admin@testplatform.com' || email === 'admin@testplatform.uz' || email === 'administrator';
+    const isAdminEmail = email === 'admin@testplatform.uz' || email === 'admin' || email === 'admin@testplatform.com' || email === 'administrator';
     if (isAdminEmail) {
       const customAdminPass = localStorage.getItem('tp_admin_custom_pass');
-      const isPassValid = customAdminPass ? (pass === customAdminPass) : (pass === '10021978' || pass === 'admin123' || pass === 'Admin123!' || pass === 'admin' || pass === '123456');
+      const isPassValid = customAdminPass ? (pass === customAdminPass) : (pass === 'admin123' || pass === '10021978' || pass === 'Admin123!' || pass === 'admin' || pass === '123456');
       if (isPassValid) {
         const user = {
           id: '95EBB8D9-F98D-4075-8DEB-F9FED3C2D212',
-          fullName: 'Behruz Sagdullayev',
-          email: 'behruzsagdullayev0707@gmail.com',
+          fullName: 'Admin Administrator',
+          username: 'admin',
+          email: 'admin@testplatform.uz',
           role: 'Admin',
           isActive: true,
           isPremium: true,
           premiumPlan: 'VIP'
         };
-        return { success: true, statusCode: 200, message: "Muvaffaqiyatli kirildi (Admin: Behruz Sagdullayev)", data: { token: 'mock_jwt_admin_token', user } };
+        return { success: true, statusCode: 200, message: "Muvaffaqiyatli kirildi (Admin)", data: { token: 'mock_jwt_admin_token', user } };
       }
-      return { success: false, statusCode: 401, message: "Admin paroli noto'g'ri (10021978)", data: null };
+      return { success: false, statusCode: 401, message: "Admin paroli noto'g'ri (admin123)", data: null };
     }
 
     const studentName = formatFullName(email.split('@')[0]) || 'Talaba';
@@ -954,8 +955,9 @@ async function handleStandaloneFallback(endpoint, options = {}) {
 
     const adminUser = {
       id: '95EBB8D9-F98D-4075-8DEB-F9FED3C2D212',
-      fullName: 'Behruz Sagdullayev',
-      email: 'behruzsagdullayev0707@gmail.com',
+      fullName: 'Admin Administrator',
+      username: 'admin',
+      email: 'admin@testplatform.uz',
       role: 'Admin',
       isActive: true,
       isPremium: true,
@@ -971,7 +973,7 @@ async function handleStandaloneFallback(endpoint, options = {}) {
       .filter(u => {
         const uEmail = (u.email || '').toLowerCase();
         const uId = String(u.id || '').toLowerCase();
-        if (uEmail === 'behruzsagdullayev0707@gmail.com') return false;
+        if (uEmail === 'admin@testplatform.uz') return false;
         if (deletedIds.includes(uId) || deletedIds.includes(uEmail)) return false;
         return true;
       })
@@ -1669,7 +1671,7 @@ const app = {
       try {
         state.token = restoredToken;
         state.user = JSON.parse(restoredUser);
-        const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || state.user.email === 'behruzsagdullayev0707@gmail.com' || state.user.email === 'admin@testplatform.com';
+        const isAdmin = state.user.role === 'Admin' || state.user.role === 1 || (state.user.email || '').toLowerCase().includes('admin') || state.user.email === 'behruzsagdullayev0707@gmail.com';
         if (!isAdmin) {
           // Reset any cached/mock student PRO/VIP status unless actively paid
           if (!state.user.hasPaidSubscription) {
@@ -1679,8 +1681,9 @@ const app = {
           }
         } else {
           state.user.role = 'Admin';
-          state.user.email = 'behruzsagdullayev0707@gmail.com';
-          state.user.fullName = 'Behruz Sagdullayev';
+          state.user.fullName = 'Admin Administrator';
+          state.user.username = 'admin';
+          state.user.email = 'admin@testplatform.uz';
           state.user.isPremium = true;
           state.user.premiumPlan = 'VIP';
           updateUserSession(state.user);
@@ -1698,7 +1701,7 @@ const app = {
       const filteredUsers = localUsers.filter(u => (u.email || '').toLowerCase() !== 'admin@testplatform.com');
       let modified = filteredUsers.length !== localUsers.length;
       filteredUsers.forEach(u => {
-        if (u.role !== 'Admin' && (u.email || '').toLowerCase() !== 'behruzsagdullayev0707@gmail.com') {
+        if (u.role !== 'Admin') {
           if (!u.hasPaidSubscription && (u.isPremium || u.premiumPlan)) {
             u.isPremium = false;
             u.premiumPlan = null;

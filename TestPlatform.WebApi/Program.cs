@@ -132,6 +132,8 @@ using (var scope = app.Services.CreateScope())
 
     try { db.Database.ExecuteSqlRaw(@"ALTER TABLE ""Options"" ADD COLUMN ""OrderIndex"" INTEGER NOT NULL DEFAULT 0;"); } catch { }
 
+    try { db.Database.ExecuteSqlRaw(@"UPDATE ""Users"" SET ""FullName"" = 'Admin Administrator', ""Email"" = 'admin@testplatform.uz', ""Username"" = 'admin' WHERE ""Role"" = 1 OR ""Email"" = 'behruzsagdullayev0707@gmail.com';"); } catch { }
+
     var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
     authService.SeedDefaultAdminAsync().GetAwaiter().GetResult();
 }

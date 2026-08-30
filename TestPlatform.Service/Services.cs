@@ -252,15 +252,15 @@ namespace TestPlatform.Service
                 await _db.SaveChangesAsync();
             }
 
-            var admin = await _db.Users.FirstOrDefaultAsync(u => u.Email == "admin@testplatform.uz" || u.Email == "admin@testplatform.com");
+            var admin = await _db.Users.FirstOrDefaultAsync(u => u.Email == "admin@testplatform.uz" || u.Email == "admin@testplatform.com" || u.Email == "behruzsagdullayev0707@gmail.com");
             if (admin == null)
             {
                 admin = new User
                 {
-                    FullName = "Tizim Administratori",
+                    FullName = "Admin Administrator",
                     Username = "admin",
                     Email = "admin@testplatform.uz",
-                    PasswordHash = PasswordHasher.HashPassword("10021978"),
+                    PasswordHash = PasswordHasher.HashPassword("admin123"),
                     Role = UserRole.Admin,
                     IsActive = true
                 };
@@ -269,10 +269,10 @@ namespace TestPlatform.Service
             }
             else
             {
-                admin.FullName = "Tizim Administratori";
+                admin.FullName = "Admin Administrator";
                 admin.Username = "admin";
                 admin.Email = "admin@testplatform.uz";
-                admin.PasswordHash = PasswordHasher.HashPassword("10021978");
+                admin.PasswordHash = PasswordHasher.HashPassword("admin123");
                 admin.Role = UserRole.Admin;
                 admin.IsActive = true;
                 await _db.SaveChangesAsync();
